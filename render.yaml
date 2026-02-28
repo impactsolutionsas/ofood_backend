@@ -13,7 +13,7 @@ services:
     plan: starter
     buildCommand: npm ci --include=dev && npx prisma generate && npm run build
     startCommand: npx prisma migrate deploy && npm run start:prod
-    nodeVersion: "20"
+    #nodeVersion: "20"
     healthCheckPath: /api/docs
     envVars:
       - key: NODE_ENV
