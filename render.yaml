@@ -1,0 +1,71 @@
+# ──────────────────────────────────────────────
+#  O'Food Backend — Render Blueprint
+#  DB: Neon PostgreSQL (externe)
+#  Cache: Redis Labs (externe)
+# ──────────────────────────────────────────────
+
+services:
+  # ── API NestJS ──────────────────────────────
+  - type: web
+    name: ofood-api
+    runtime: node
+    region: ohio  # us-east — même région que Neon et Redis Labs
+    plan: starter
+    buildCommand: npm ci && npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && npm run start:prod
+    healthCheckPath: /api/docs
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"
+      - key: APP_URL
+        sync: false  # à renseigner après déploiement (ex: https://ofood-api.onrender.com)
+      - key: CORS_ORIGINS
+        sync: false  # URL du front Vercel
+
+      # ── Database (Neon PostgreSQL) ──────────
+      - key: DATABASE_URL
+        value: "postgresql://neondb_owner:npg_CU8S9XqfpMJm@ep-rapid-flower-a4gj0nfq-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+
+      # ── Redis (Redis Labs) ──────────────────
+      - key: REDIS_URL
+        value: "redis://default:HccycDx5ltDVh6lF1R8uDlToBYLndcFx@redis-12277.c85.us-east-1-2.ec2.cloud.redislabs.com:12277"
+
+      # ── JWT ─────────────────────────────────
+      - key: JWT_SECRET
+        value: "TLvgnPGaFRotLBdzjlkYzaWJMOmSniqKONEwglJgGlrIsfozBYfbwXuxqGlsQe"
+      - key: JWT_EXPIRES_IN
+        value: "15m"
+      - key: JWT_REFRESH_SECRET
+        value: "HJahXgcljCJsK41172ppzKm4ii8"
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: "7d"
+
+      # ── SMS ─────────────────────────────────
+      - key: SMS_PROVIDER
+        value: console
+
+      # ── Push Notifications ──────────────────
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        value: "mailto:contact@ofood.sn"
+
+      # ── Delivery ────────────────────────────
+      - key: DELIVERY_SEARCH_RADIUS_KM
+        value: "3"
+      - key: DELIVERY_MAX_SEARCH_RADIUS_KM
+        value: "8"
+      - key: DELIVERY_ACCEPTANCE_TIMEOUT_MS
+        value: "60000"
+      - key: DELIVERY_FEE_PER_KM
+        value: "500"
+      - key: DELIVERY_PLATFORM_SHARE
+        value: "0.20"
+      - key: DELIVERY_COURIER_SHARE
+        value: "0.80"
+      - key: WALLET_MIN_RECHARGE
+        value: "500"
