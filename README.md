@@ -1,98 +1,168 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# O'Food Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Backend API for the O'Food food delivery platform, built for the Senegalese market. Handles restaurant management, real-time ordering, mobile money payments, and SMS-based authentication.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Tech Stack
 
-## Description
+- **Framework:** NestJS 11 (TypeScript)
+- **Database:** PostgreSQL + Prisma ORM
+- **Cache:** Redis (ioredis)
+- **Real-time:** Socket.IO (WebSocket)
+- **Auth:** JWT (access + refresh tokens), phone/PIN-based login with OTP
+- **SMS:** Infobip / Termii (pluggable strategy)
+- **Docs:** Swagger/OpenAPI at `/api/docs`
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Project Structure
 
-## Project setup
-
-```bash
-$ npm install
+```
+src/
+├── auth/            # Registration, OTP, login, JWT tokens
+├── users/           # User profile management
+├── restaurants/     # Restaurant CRUD, geo-filtering, wallet
+├── dishes/          # Dish management (categories, availability)
+├── menus/           # Weekly menu configuration
+├── orders/          # Order lifecycle + WebSocket notifications
+├── payments/        # Wave, Orange Money, Free Money integration
+├── ratings/         # Post-delivery restaurant ratings
+├── notifications/   # SMS service (multi-provider)
+├── admin/           # Dashboard, user/restaurant/order management
+├── common/          # Guards, decorators, interceptors, pipes
+├── prisma/          # Database service
+└── redis/           # Redis caching service
 ```
 
-## Compile and run the project
+## User Roles
+
+| Role               | Description                              |
+| ------------------ | ---------------------------------------- |
+| `CLIENT`           | Browse restaurants, place orders, rate   |
+| `RESTAURANT_OWNER` | Manage restaurant, dishes, menus, orders |
+| `ADMIN`            | Platform oversight, verification, stats  |
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- PostgreSQL
+- Redis
+
+### Setup
 
 ```bash
-# development
-$ npm run start
+# Install dependencies
+npm install
 
-# watch mode
-$ npm run start:dev
+# Copy environment variables
+cp .env.example .env
+# Edit .env with your database, Redis, JWT, and SMS credentials
 
-# production mode
-$ npm run start:prod
+# Run database migrations
+npx prisma migrate dev
+
+# Generate Prisma client
+npx prisma generate
 ```
 
-## Run tests
+### Run
 
 ```bash
-# unit tests
-$ npm run test
+# Development (watch mode)
+npm run start:dev
 
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+# Production
+npm run build
+npm run start:prod
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### Test
 
 ```bash
-$ npm install -g mau
-$ mau deploy
+npm run test          # Unit tests
+npm run test:e2e      # End-to-end tests
+npm run test:cov      # Coverage report
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## API Overview
 
-## Resources
+### Auth
+| Method | Endpoint             | Description       |
+| ------ | -------------------- | ----------------- |
+| POST   | `/auth/register`     | Register (phone + PIN) |
+| POST   | `/auth/verify-otp`   | Verify OTP code   |
+| POST   | `/auth/login`        | Login              |
+| POST   | `/auth/refresh`      | Refresh token      |
+| POST   | `/auth/logout`       | Logout             |
 
-Check out a few resources that may come in handy when working with NestJS:
+### Restaurants
+| Method | Endpoint                      | Description              |
+| ------ | ----------------------------- | ------------------------ |
+| GET    | `/restaurants`                | List (with geo-filter)   |
+| GET    | `/restaurants/:id`            | Details                  |
+| POST   | `/restaurants`                | Create (OWNER)           |
+| PATCH  | `/restaurants/:id`            | Update (OWNER)           |
+| GET    | `/restaurants/:id/wallet`     | Wallet & transactions    |
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+### Dishes & Menus
+| Method | Endpoint                              | Description             |
+| ------ | ------------------------------------- | ----------------------- |
+| GET    | `/dishes`                             | List with filtering     |
+| POST   | `/restaurants/:id/dishes`             | Add dish (OWNER)        |
+| GET    | `/restaurants/:id/menus`              | Weekly menu             |
+| GET    | `/restaurants/:id/menus/today`        | Today's menu            |
+| PUT    | `/restaurants/:id/menus`              | Set weekly menu (OWNER) |
 
-## Support
+### Orders
+| Method | Endpoint                     | Description                |
+| ------ | ---------------------------- | -------------------------- |
+| POST   | `/orders`                    | Create order (CLIENT)      |
+| GET    | `/orders/me`                 | My orders (CLIENT)         |
+| GET    | `/orders/restaurant`         | Received orders (OWNER)    |
+| PATCH  | `/orders/:id/status`         | Update status (OWNER)      |
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+**Order flow:** `PENDING` -> `AWAITING_PAYMENT` -> `PAID` -> `PREPARING` -> `READY` -> `DELIVERED`
 
-## Stay in touch
+### Payments
+| Method | Endpoint                    | Description            |
+| ------ | --------------------------- | ---------------------- |
+| POST   | `/payments/initiate`        | Start payment (CLIENT) |
+| POST   | `/payments/:id/verify`      | Verify payment         |
+| GET    | `/payments/order/:orderId`  | Order transactions     |
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+### Ratings
+| Method | Endpoint                      | Description               |
+| ------ | ----------------------------- | ------------------------- |
+| POST   | `/ratings`                    | Rate restaurant (CLIENT)  |
+| GET    | `/ratings/restaurant/:id`     | Restaurant ratings        |
+
+### Admin
+| Method | Endpoint                           | Description          |
+| ------ | ---------------------------------- | -------------------- |
+| GET    | `/admin/dashboard`                 | Platform statistics  |
+| GET    | `/admin/users`                     | All users            |
+| GET    | `/admin/restaurants`               | All restaurants      |
+| PATCH  | `/admin/restaurants/:id/verify`    | Verify restaurant    |
+| GET    | `/admin/orders`                    | All orders           |
+| GET    | `/admin/transactions`              | All transactions     |
+
+## WebSocket Events
+
+| Event              | Direction      | Description               |
+| ------------------ | -------------- | ------------------------- |
+| `join-restaurant`  | Client -> Server | Subscribe to restaurant orders |
+| `join-user`        | Client -> Server | Subscribe to order updates     |
+| `new-order`        | Server -> Client | New order received             |
+| `order-status`     | Server -> Client | Order status changed           |
+
+## Environment Variables
+
+See [.env.example](.env.example) for the full list. Key variables:
+
+- `DATABASE_URL` - PostgreSQL connection string
+- `REDIS_HOST` / `REDIS_PORT` - Redis connection
+- `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` - Token secrets
+- `SMS_PROVIDER` - `infobip`, `termii`, or `console`
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+MIT
