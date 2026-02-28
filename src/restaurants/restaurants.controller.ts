@@ -24,6 +24,34 @@ export class RestaurantsController {
     return this.restaurantsService.findAll(query);
   }
 
+  @ApiBearerAuth()
+  @UseGuards(RolesGuard)
+  @Roles(Role.RESTAURANT_OWNER)
+  @Get(':id/stats')
+  @ApiOperation({ summary: 'Statistiques de ventes du restaurant (OWNER)' })
+  @ApiResponse({ status: 200, description: 'Stats retournées' })
+  @ApiResponse({ status: 403, description: 'Pas le propriétaire' })
+  async getStats(
+    @CurrentUser('sub') ownerId: string,
+    @Param('id', ParseUuidPipe) id: string,
+  ) {
+    return this.restaurantsService.getStats(ownerId, id);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(RolesGuard)
+  @Roles(Role.RESTAURANT_OWNER)
+  @Get(':id/wallet')
+  @ApiOperation({ summary: 'Solde et historique transactions' })
+  @ApiResponse({ status: 200, description: 'Wallet retourné' })
+  @ApiResponse({ status: 403, description: 'Pas le propriétaire' })
+  async getWallet(
+    @CurrentUser('sub') ownerId: string,
+    @Param('id', ParseUuidPipe) id: string,
+  ) {
+    return this.restaurantsService.getWallet(ownerId, id);
+  }
+
   @Public()
   @Get(':id')
   @ApiOperation({ summary: 'Détail d\'un restaurant' })
@@ -60,19 +88,5 @@ export class RestaurantsController {
     @Body() dto: UpdateRestaurantDto,
   ) {
     return this.restaurantsService.update(ownerId, id, dto);
-  }
-
-  @ApiBearerAuth()
-  @UseGuards(RolesGuard)
-  @Roles(Role.RESTAURANT_OWNER)
-  @Get(':id/wallet')
-  @ApiOperation({ summary: 'Solde et historique transactions' })
-  @ApiResponse({ status: 200, description: 'Wallet retourné' })
-  @ApiResponse({ status: 403, description: 'Pas le propriétaire' })
-  async getWallet(
-    @CurrentUser('sub') ownerId: string,
-    @Param('id', ParseUuidPipe) id: string,
-  ) {
-    return this.restaurantsService.getWallet(ownerId, id);
   }
 }

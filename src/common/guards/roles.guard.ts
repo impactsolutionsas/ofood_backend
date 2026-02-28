@@ -9,6 +9,14 @@ import { Role } from '@prisma/client';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import { JwtPayload } from '../decorators/current-user.decorator';
 
+// COURIER inherits CLIENT permissions (can access CLIENT routes)
+const ROLE_INCLUDES: Record<string, Role[]> = {
+  [Role.COURIER]: [Role.COURIER, Role.CLIENT],
+  [Role.ADMIN]: [Role.ADMIN],
+  [Role.CLIENT]: [Role.CLIENT],
+  [Role.RESTAURANT_OWNER]: [Role.RESTAURANT_OWNER],
+};
+
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
@@ -24,7 +32,8 @@ export class RolesGuard implements CanActivate {
     }
 
     const { user } = context.switchToHttp().getRequest<{ user: JwtPayload }>();
-    const hasRole = requiredRoles.some((role) => user.role === role);
+    const userRoles = ROLE_INCLUDES[user.role] || [user.role];
+    const hasRole = requiredRoles.some((role) => userRoles.includes(role));
 
     if (!hasRole) {
       throw new ForbiddenException('Accès refusé');

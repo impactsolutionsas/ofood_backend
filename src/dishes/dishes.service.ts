@@ -49,8 +49,9 @@ export class DishesService {
       });
     }
 
-    // No geo filter
-    const where: Prisma.DishWhereInput = { isAvailable: true };
+    // No geo filter — when restaurantId is specified (owner view), show all dishes
+    const where: Prisma.DishWhereInput = {};
+    if (!restaurantId) where.isAvailable = true;
     if (category) where.category = category;
     if (restaurantId) where.restaurantId = restaurantId;
 

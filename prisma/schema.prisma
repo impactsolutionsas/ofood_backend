@@ -13,6 +13,7 @@ enum Role {
   CLIENT
   RESTAURANT_OWNER
   ADMIN
+  COURIER
 }
 
 enum DishCategory {
@@ -38,14 +39,56 @@ enum OrderStatus {
   PAID
   PREPARING
   READY
+  PICKED_UP
+  IN_TRANSIT
   DELIVERED
   CANCELLED
+}
+
+enum DeliveryStatus {
+  PENDING
+  SEARCHING
+  ASSIGNED
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+}
+
+enum DeliveryVehicle {
+  MOTO
+  VELO
+  VOITURE
+}
+
+enum WalletTransactionType {
+  RECHARGE
+  DEBIT_ORDER
+  REFUND
+  BONUS
+  CASHOUT
+}
+
+enum WalletTransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REVERSED
+}
+
+enum NotificationCategory {
+  ORDER_UPDATE
+  DELIVERY_UPDATE
+  PAYMENT
+  PROMO
+  SYSTEM
 }
 
 enum PaymentMethod {
   WAVE
   ORANGE_MONEY
   FREE_MONEY
+  CASH_ON_DELIVERY
 }
 
 enum TransactionType {
@@ -72,10 +115,14 @@ model User {
   isActive   Boolean     @default(true)
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
-  restaurant Restaurant?
-  orders     Order[]
-  ratings    Rating[]
-  otpCodes   OtpCode[]
+  restaurant        Restaurant?
+  orders            Order[]
+  ratings           Rating[]
+  otpCodes          OtpCode[]
+  wallet            Wallet?
+  courier           Courier?
+  pushSubscriptions PushSubscription[]
+  notificationLogs  NotificationLog[]
 
   @@map("users")
 }
@@ -166,19 +213,23 @@ model MenuItem {
 }
 
 model Order {
-  id            String        @id @default(uuid())
-  userId        String
-  status        OrderStatus   @default(PENDING)
-  totalAmount   Float
-  paymentStatus String        @default("UNPAID")
-  paymentMethod PaymentMethod?
-  paymentRef    String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  user          User          @relation(fields: [userId], references: [id])
-  items         OrderItem[]
-  transactions  Transaction[]
-  rating        Rating?
+  id                String              @id @default(uuid())
+  userId            String
+  status            OrderStatus         @default(PENDING)
+  totalAmount       Float
+  paymentStatus     String              @default("UNPAID")
+  paymentMethod     PaymentMethod?
+  paymentRef        String?
+  paidFromWallet    Boolean             @default(false)
+  walletAmountUsed  Float?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  user              User                @relation(fields: [userId], references: [id])
+  items             OrderItem[]
+  transactions      Transaction[]
+  walletTransactions WalletTransaction[]
+  rating            Rating?
+  delivery          Delivery?
 
   @@map("orders")
 }
@@ -229,4 +280,142 @@ model Rating {
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
 
   @@map("ratings")
+}
+
+// ─── Phase 2 Models ─────────────────────────────────────
+
+model Wallet {
+  id           String              @id @default(uuid())
+  userId       String              @unique
+  balance      Float               @default(0)
+  frozenAmount Float               @default(0)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  user         User                @relation(fields: [userId], references: [id])
+  transactions WalletTransaction[]
+
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id            String                  @id @default(uuid())
+  walletId      String
+  orderId       String?
+  type          WalletTransactionType
+  amount        Float
+  balanceBefore Float
+  balanceAfter  Float
+  status        WalletTransactionStatus @default(PENDING)
+  reference     String?
+  note          String?
+  createdAt     DateTime                @default(now())
+  wallet        Wallet                  @relation(fields: [walletId], references: [id])
+  order         Order?                  @relation(fields: [orderId], references: [id])
+
+  @@map("wallet_transactions")
+}
+
+model Courier {
+  id            String             @id @default(uuid())
+  userId        String             @unique
+  vehicle       DeliveryVehicle
+  plateNumber   String?
+  idCardUrl     String
+  selfieUrl     String
+  isVerified    Boolean            @default(false)
+  isOnline      Boolean            @default(false)
+  currentLat    Float?
+  currentLng    Float?
+  walletBalance Float              @default(0)
+  avgRating     Float              @default(0)
+  totalRatings  Int                @default(0)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  user          User               @relation(fields: [userId], references: [id])
+  deliveries    Delivery[]
+  transactions  CourierTransaction[]
+
+  @@map("couriers")
+}
+
+model Delivery {
+  id               String             @id @default(uuid())
+  orderId          String             @unique
+  courierId        String?
+  status           DeliveryStatus     @default(PENDING)
+  pickupLat        Float
+  pickupLng        Float
+  dropoffLat       Float
+  dropoffLng       Float
+  distanceKm       Float?
+  deliveryFee      Float?
+  courierShare     Float?
+  platformShare    Float?
+  confirmationCode String?
+  proofPhotoUrl    String?
+  assignedAt       DateTime?
+  pickedUpAt       DateTime?
+  deliveredAt      DateTime?
+  cancelledAt      DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  order            Order              @relation(fields: [orderId], references: [id])
+  courier          Courier?           @relation(fields: [courierId], references: [id])
+  locations        DeliveryLocation[]
+
+  @@map("deliveries")
+}
+
+model DeliveryLocation {
+  id         String   @id @default(uuid())
+  deliveryId String
+  lat        Float
+  lng        Float
+  speed      Float?
+  recordedAt DateTime @default(now())
+  delivery   Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@map("delivery_locations")
+}
+
+model CourierTransaction {
+  id         String            @id @default(uuid())
+  courierId  String
+  deliveryId String?
+  type       TransactionType
+  amount     Float
+  status     TransactionStatus @default(PENDING)
+  note       String?
+  createdAt  DateTime          @default(now())
+  courier    Courier           @relation(fields: [courierId], references: [id])
+
+  @@map("courier_transactions")
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  endpoint  String   @unique
+  p256dhKey String
+  authKey   String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("push_subscriptions")
+}
+
+model NotificationLog {
+  id        String               @id @default(uuid())
+  userId    String
+  category  NotificationCategory
+  title     String
+  body      String
+  data      Json?
+  isRead    Boolean              @default(false)
+  createdAt DateTime             @default(now())
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_logs")
 }

@@ -57,6 +57,11 @@ export class AuthService {
       },
     });
 
+    // Auto-create wallet for the user
+    await this.prisma.wallet.create({
+      data: { userId: user.id, balance: 0, frozenAmount: 0 },
+    });
+
     const otp = this.generateOtp();
 
     await this.prisma.otpCode.create({
@@ -82,7 +87,12 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({
       where: { phone: normalizedPhone },
-      include: { otpCodes: true },
+      include: {
+        otpCodes: true,
+        restaurant: {
+          select: { id: true, name: true, isVerified: true, isOpen: true },
+        },
+      },
     });
 
     if (!user) {
@@ -132,6 +142,11 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({
       where: { phone: normalizedPhone },
+      include: {
+        restaurant: {
+          select: { id: true, name: true, isVerified: true, isOpen: true },
+        },
+      },
     });
 
     if (!user) {
@@ -178,6 +193,11 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({
       where: { id: sub },
+      include: {
+        restaurant: {
+          select: { id: true, name: true, isVerified: true, isOpen: true },
+        },
+      },
     });
 
     if (!user || !user.isActive) {
@@ -270,7 +290,9 @@ export class AuthService {
     return normalized;
   }
 
-  private toUserResponse(user: User): UserResponseDto {
+  private toUserResponse(
+    user: User & { restaurant?: { id: string; name: string; isVerified: boolean; isOpen: boolean } | null },
+  ): UserResponseDto {
     return new UserResponseDto({
       id: user.id,
       firstName: user.firstName,
@@ -279,6 +301,7 @@ export class AuthService {
       email: user.email,
       role: user.role,
       isActive: user.isActive,
+      restaurant: user.restaurant ?? null,
     });
   }
 }

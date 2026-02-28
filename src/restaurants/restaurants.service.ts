@@ -4,6 +4,7 @@ import {
   ConflictException,
   ForbiddenException,
 } from '@nestjs/common';
+import { OrderStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateRestaurantDto } from './dto/create-restaurant.dto';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
@@ -76,6 +77,9 @@ export class RestaurantsService {
     const restaurant = await this.prisma.restaurant.findUnique({
       where: { id },
       include: {
+        owner: {
+          select: { id: true, firstName: true, lastName: true, phone: true },
+        },
         dishes: { where: { isAvailable: true }, orderBy: { category: 'asc' } },
         _count: { select: { ratings: true } },
       },
@@ -112,6 +116,63 @@ export class RestaurantsService {
       where: { id: restaurant.id },
       data: dto,
     });
+  }
+
+  async getStats(ownerId: string, id: string) {
+    const restaurant = await this.ensureOwnership(ownerId, id);
+
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek = new Date(startOfToday);
+    startOfWeek.setDate(startOfToday.getDate() - 7);
+    const startOfMonth = new Date(startOfToday);
+    startOfMonth.setDate(startOfToday.getDate() - 30);
+
+    const deliveredStatuses = [OrderStatus.DELIVERED];
+
+    const buildFilter = (since: Date) => ({
+      where: {
+        items: { some: { restaurantId: restaurant.id } },
+        status: { in: deliveredStatuses },
+        createdAt: { gte: since },
+      },
+    });
+
+    const [today, week, month, total] = await Promise.all([
+      this.prisma.order.aggregate({
+        ...buildFilter(startOfToday),
+        _count: true,
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.order.aggregate({
+        ...buildFilter(startOfWeek),
+        _count: true,
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.order.aggregate({
+        ...buildFilter(startOfMonth),
+        _count: true,
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.order.aggregate({
+        where: {
+          items: { some: { restaurantId: restaurant.id } },
+          status: { in: deliveredStatuses },
+        },
+        _count: true,
+        _sum: { totalAmount: true },
+      }),
+    ]);
+
+    return {
+      today: { orders: today._count, revenue: today._sum.totalAmount || 0 },
+      week: { orders: week._count, revenue: week._sum.totalAmount || 0 },
+      month: { orders: month._count, revenue: month._sum.totalAmount || 0 },
+      totalOrders: total._count,
+      totalRevenue: total._sum.totalAmount || 0,
+      avgRating: restaurant.avgRating,
+      totalRatings: restaurant.totalRatings,
+    };
   }
 
   async getWallet(ownerId: string, id: string) {

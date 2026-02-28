@@ -4,7 +4,13 @@ import {
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
-import { OrderStatus, Role } from '@prisma/client';
+import {
+  OrderStatus,
+  PaymentMethod,
+  Role,
+  TransactionType,
+  TransactionStatus,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SmsService } from '../notifications/sms.service';
 import { OrdersGateway } from './orders.gateway';
@@ -12,7 +18,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 
 const VALID_TRANSITIONS: Record<string, OrderStatus[]> = {
-  [OrderStatus.PENDING]: [OrderStatus.AWAITING_PAYMENT, OrderStatus.CANCELLED],
+  [OrderStatus.PENDING]: [OrderStatus.AWAITING_PAYMENT, OrderStatus.PREPARING, OrderStatus.CANCELLED],
   [OrderStatus.AWAITING_PAYMENT]: [OrderStatus.PAID, OrderStatus.CANCELLED],
   [OrderStatus.PAID]: [OrderStatus.PREPARING],
   [OrderStatus.PREPARING]: [OrderStatus.READY],
@@ -67,11 +73,16 @@ export class OrdersService {
     const totalAmount = orderItems.reduce((sum, i) => sum + i.subtotal, 0);
 
     // Create order in transaction
+    const isCod = dto.paymentMethod === PaymentMethod.CASH_ON_DELIVERY;
     const order = await this.prisma.$transaction(async (tx) => {
       return tx.order.create({
         data: {
           userId,
           totalAmount,
+          ...(isCod && {
+            paymentMethod: PaymentMethod.CASH_ON_DELIVERY,
+            paymentStatus: 'COD',
+          }),
           items: { create: orderItems },
         },
         include: {
@@ -160,7 +171,7 @@ export class OrdersService {
     return order;
   }
 
-  async findRestaurantOrders(ownerId: string) {
+  async findRestaurantOrders(ownerId: string, statusFilter?: string) {
     const restaurant = await this.prisma.restaurant.findUnique({
       where: { ownerId },
     });
@@ -169,10 +180,18 @@ export class OrdersService {
       throw new NotFoundException('Restaurant non trouvé');
     }
 
+    const where: Record<string, unknown> = {
+      items: { some: { restaurantId: restaurant.id } },
+    };
+
+    if (statusFilter === 'history') {
+      where.status = { in: [OrderStatus.DELIVERED, OrderStatus.CANCELLED] };
+    } else if (statusFilter === 'active') {
+      where.status = { in: [OrderStatus.PENDING, OrderStatus.PAID, OrderStatus.PREPARING, OrderStatus.READY] };
+    }
+
     return this.prisma.order.findMany({
-      where: {
-        items: { some: { restaurantId: restaurant.id } },
-      },
+      where,
       include: {
         items: {
           where: { restaurantId: restaurant.id },
@@ -217,18 +236,64 @@ export class OrdersService {
       );
     }
 
-    const updated = await this.prisma.order.update({
-      where: { id: orderId },
-      data: { status: dto.status },
-      include: {
-        items: {
-          include: {
-            dish: { select: { id: true, name: true } },
-            restaurant: { select: { id: true, name: true } },
-          },
+    const isCodDelivery =
+      dto.status === OrderStatus.DELIVERED &&
+      order.paymentMethod === PaymentMethod.CASH_ON_DELIVERY;
+
+    const orderInclude = {
+      items: {
+        include: {
+          dish: { select: { id: true, name: true } },
+          restaurant: { select: { id: true, name: true } },
         },
       },
-    });
+    };
+
+    let updated;
+
+    if (isCodDelivery) {
+      // COD delivery: update status + credit restaurant wallets atomically
+      updated = await this.prisma.$transaction(async (tx) => {
+        const updatedOrder = await tx.order.update({
+          where: { id: orderId },
+          data: { status: dto.status, paymentStatus: 'PAID' },
+          include: orderInclude,
+        });
+
+        // Compute per-restaurant amounts
+        const restaurantAmounts = new Map<string, number>();
+        for (const item of order.items) {
+          const current = restaurantAmounts.get(item.restaurantId) || 0;
+          restaurantAmounts.set(item.restaurantId, current + item.subtotal);
+        }
+
+        // Credit each restaurant wallet + create transaction records
+        for (const [restaurantId, amount] of restaurantAmounts) {
+          await tx.restaurant.update({
+            where: { id: restaurantId },
+            data: { walletBalance: { increment: amount } },
+          });
+          await tx.transaction.create({
+            data: {
+              restaurantId,
+              orderId: order.id,
+              type: TransactionType.CREDIT,
+              amount,
+              status: TransactionStatus.SUCCESS,
+              note: `Paiement à la livraison commande #${order.id.slice(0, 8)}`,
+            },
+          });
+        }
+
+        return updatedOrder;
+      });
+    } else {
+      updated = await this.prisma.order.update({
+        where: { id: orderId },
+        data: { status: dto.status },
+        include: orderInclude,
+      });
+    }
 
     // Notify via WebSocket
     const restaurantIds = [...new Set(order.items.map((i) => i.restaurant.id))];

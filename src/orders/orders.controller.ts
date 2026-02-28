@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { OrdersService } from './orders.service';
@@ -37,6 +37,18 @@ export class OrdersController {
     return this.ordersService.findMyOrders(userId);
   }
 
+  @UseGuards(RolesGuard)
+  @Roles(Role.RESTAURANT_OWNER)
+  @Get('restaurant')
+  @ApiOperation({ summary: 'Commandes reçues par mon restaurant (OWNER)' })
+  @ApiResponse({ status: 200, description: 'Commandes retournées' })
+  async findRestaurantOrders(
+    @CurrentUser('sub') ownerId: string,
+    @Query('status') status?: string,
+  ) {
+    return this.ordersService.findRestaurantOrders(ownerId, status);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Détail d\'une commande (client ou owner concerné)' })
   @ApiResponse({ status: 200, description: 'Commande retournée' })
@@ -48,15 +60,6 @@ export class OrdersController {
     @Param('id', ParseUuidPipe) id: string,
   ) {
     return this.ordersService.findOne(userId, role, id);
-  }
-
-  @UseGuards(RolesGuard)
-  @Roles(Role.RESTAURANT_OWNER)
-  @Get('restaurant')
-  @ApiOperation({ summary: 'Commandes reçues par mon restaurant (OWNER)' })
-  @ApiResponse({ status: 200, description: 'Commandes retournées' })
-  async findRestaurantOrders(@CurrentUser('sub') ownerId: string) {
-    return this.ordersService.findRestaurantOrders(ownerId);
   }
 
   @UseGuards(RolesGuard)
