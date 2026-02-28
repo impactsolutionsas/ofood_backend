@@ -1,0 +1,232 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────
+
+enum Role {
+  CLIENT
+  RESTAURANT_OWNER
+  ADMIN
+}
+
+enum DishCategory {
+  BREAKFAST
+  LUNCH
+  DINNER
+  DESSERT
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum OrderStatus {
+  PENDING
+  AWAITING_PAYMENT
+  PAID
+  PREPARING
+  READY
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  WAVE
+  ORANGE_MONEY
+  FREE_MONEY
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+// ─── Models ──────────────────────────────────────────────
+
+model User {
+  id         String      @id @default(uuid())
+  firstName  String
+  lastName   String
+  phone      String      @unique
+  email      String?     @unique
+  pinHash    String
+  role       Role        @default(CLIENT)
+  isActive   Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  restaurant Restaurant?
+  orders     Order[]
+  ratings    Rating[]
+  otpCodes   OtpCode[]
+
+  @@map("users")
+}
+
+model OtpCode {
+  id        String   @id @default(uuid())
+  userId    String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("otp_codes")
+}
+
+model Restaurant {
+  id            String        @id @default(uuid())
+  ownerId       String        @unique
+  name          String
+  logoUrl       String
+  address       String
+  lat           Float
+  lng           Float
+  description   String
+  avgRating     Float         @default(0)
+  totalRatings  Int           @default(0)
+  isOpen        Boolean       @default(false)
+  avgPrepTime   Int           @default(20)
+  dailyCapacity String
+  isVerified    Boolean       @default(false)
+  walletBalance Float         @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  owner         User          @relation(fields: [ownerId], references: [id])
+  dishes        Dish[]
+  menus         Menu[]
+  orderItems    OrderItem[]
+  transactions  Transaction[]
+  ratings       Rating[]
+
+  @@map("restaurants")
+}
+
+model Dish {
+  id           String       @id @default(uuid())
+  restaurantId String
+  name         String
+  description  String?
+  price        Float
+  photoUrl     String?
+  category     DishCategory
+  isAvailable  Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  menuItems    MenuItem[]
+  orderItems   OrderItem[]
+
+  @@map("dishes")
+}
+
+model Menu {
+  id           String     @id @default(uuid())
+  restaurantId String
+  dayOfWeek    DayOfWeek
+  date         DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  items        MenuItem[]
+
+  @@unique([restaurantId, dayOfWeek])
+  @@map("menus")
+}
+
+model MenuItem {
+  id          String  @id @default(uuid())
+  menuId      String
+  dishId      String
+  isAvailable Boolean @default(true)
+  createdAt   DateTime @default(now())
+  menu        Menu     @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  dish        Dish     @relation(fields: [dishId], references: [id], onDelete: Cascade)
+
+  @@unique([menuId, dishId])
+  @@map("menu_items")
+}
+
+model Order {
+  id            String        @id @default(uuid())
+  userId        String
+  status        OrderStatus   @default(PENDING)
+  totalAmount   Float
+  paymentStatus String        @default("UNPAID")
+  paymentMethod PaymentMethod?
+  paymentRef    String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  user          User          @relation(fields: [userId], references: [id])
+  items         OrderItem[]
+  transactions  Transaction[]
+  rating        Rating?
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id           String     @id @default(uuid())
+  orderId      String
+  dishId       String
+  restaurantId String
+  quantity     Int
+  unitPrice    Float
+  subtotal     Float
+  order        Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  dish         Dish       @relation(fields: [dishId], references: [id])
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+
+  @@map("order_items")
+}
+
+model Transaction {
+  id             String            @id @default(uuid())
+  orderId        String?
+  restaurantId   String?
+  type           TransactionType
+  amount         Float
+  mobileProvider PaymentMethod?
+  phoneNumber    String?
+  reference      String?
+  status         TransactionStatus @default(PENDING)
+  note           String?
+  createdAt      DateTime          @default(now())
+  order          Order?            @relation(fields: [orderId], references: [id])
+  restaurant     Restaurant?       @relation(fields: [restaurantId], references: [id])
+
+  @@map("transactions")
+}
+
+model Rating {
+  id           String     @id @default(uuid())
+  orderId      String     @unique
+  userId       String
+  restaurantId String
+  stars        Int
+  comment      String?
+  createdAt    DateTime   @default(now())
+  order        Order      @relation(fields: [orderId], references: [id])
+  user         User       @relation(fields: [userId], references: [id])
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+
+  @@map("ratings")
+}

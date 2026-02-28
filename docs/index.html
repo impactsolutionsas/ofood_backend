@@ -1,0 +1,1520 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>O'Food API — Documentation Développeur</title>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --bg-card: #12121a;
+      --bg-card-hover: #1a1a25;
+      --bg-code: #1e1e2e;
+      --border: #2a2a3a;
+      --text: #e4e4ef;
+      --text-muted: #8888a0;
+      --accent: #f97316;
+      --accent-light: #fb923c;
+      --green: #22c55e;
+      --blue: #3b82f6;
+      --purple: #a78bfa;
+      --red: #ef4444;
+      --yellow: #eab308;
+      --cyan: #06b6d4;
+      --pink: #ec4899;
+      --radius: 12px;
+      --sidebar-w: 280px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      font-size: 15px;
+    }
+
+    /* ─── SIDEBAR ─── */
+    .sidebar {
+      position: fixed;
+      top: 0; left: 0;
+      width: var(--sidebar-w);
+      height: 100vh;
+      background: var(--bg-card);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      z-index: 100;
+      padding: 24px 0;
+      transition: transform 0.3s;
+    }
+
+    .sidebar-logo {
+      padding: 0 24px 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+
+    .sidebar-logo h1 {
+      font-size: 22px;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--yellow));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .sidebar-logo span {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: block;
+      margin-top: 4px;
+    }
+
+    .nav-group { margin-bottom: 8px; }
+
+    .nav-group-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--text-muted);
+      padding: 12px 24px 6px;
+    }
+
+    .nav-link {
+      display: block;
+      padding: 8px 24px 8px 32px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13.5px;
+      transition: all 0.2s;
+      border-left: 3px solid transparent;
+    }
+
+    .nav-link:hover, .nav-link.active {
+      color: var(--text);
+      background: rgba(249, 115, 22, 0.06);
+      border-left-color: var(--accent);
+    }
+
+    /* ─── MAIN ─── */
+    .main {
+      margin-left: var(--sidebar-w);
+      max-width: 900px;
+      padding: 40px 48px 100px;
+    }
+
+    /* ─── MOBILE MENU ─── */
+    .mobile-toggle {
+      display: none;
+      position: fixed;
+      top: 16px; left: 16px;
+      z-index: 200;
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      width: 42px; height: 42px;
+      cursor: pointer;
+      color: #fff;
+      font-size: 20px;
+    }
+
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 99;
+    }
+
+    /* ─── TYPOGRAPHY ─── */
+    h2 {
+      font-size: 28px;
+      font-weight: 800;
+      margin: 56px 0 12px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      color: #fff;
+    }
+
+    h2:first-of-type { border-top: none; margin-top: 0; }
+
+    h3 {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 36px 0 10px;
+      color: var(--accent-light);
+    }
+
+    h4 {
+      font-size: 15px;
+      font-weight: 600;
+      margin: 20px 0 8px;
+      color: var(--purple);
+    }
+
+    p { margin: 8px 0 16px; color: var(--text-muted); }
+
+    /* ─── HERO ─── */
+    .hero {
+      background: linear-gradient(135deg, rgba(249,115,22,0.12), rgba(168,85,247,0.08));
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px;
+      margin-bottom: 40px;
+    }
+
+    .hero h1 {
+      font-size: 36px;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--accent), var(--yellow));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+
+    .hero p { font-size: 16px; color: var(--text-muted); margin: 0; }
+
+    .hero .badges { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    .badge .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    /* ─── CODE BLOCKS ─── */
+    pre {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      overflow-x: auto;
+      margin: 12px 0 20px;
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    code {
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 13px;
+    }
+
+    p code, li code, td code {
+      background: rgba(249,115,22,0.1);
+      color: var(--accent-light);
+      padding: 2px 7px;
+      border-radius: 5px;
+      font-size: 12.5px;
+    }
+
+    .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      border-radius: var(--radius) var(--radius) 0 0;
+      padding: 8px 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 12px;
+    }
+
+    .code-header + pre {
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+      margin-top: 0;
+    }
+
+    .copy-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 3px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 11px;
+      transition: all 0.2s;
+    }
+
+    .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+    /* ─── METHOD BADGES ─── */
+    .method {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      font-family: monospace;
+      letter-spacing: 0.5px;
+    }
+
+    .method-get { background: rgba(34,197,94,0.15); color: var(--green); }
+    .method-post { background: rgba(59,130,246,0.15); color: var(--blue); }
+    .method-put { background: rgba(234,179,8,0.15); color: var(--yellow); }
+    .method-patch { background: rgba(167,139,250,0.15); color: var(--purple); }
+    .method-delete { background: rgba(239,68,68,0.15); color: var(--red); }
+
+    .auth-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+
+    .auth-public { background: rgba(34,197,94,0.12); color: var(--green); }
+    .auth-client { background: rgba(59,130,246,0.12); color: var(--blue); }
+    .auth-owner { background: rgba(234,179,8,0.12); color: var(--yellow); }
+    .auth-admin { background: rgba(239,68,68,0.12); color: var(--red); }
+    .auth-jwt { background: rgba(167,139,250,0.12); color: var(--purple); }
+
+    /* ─── ENDPOINT CARDS ─── */
+    .endpoint {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin: 16px 0;
+      transition: border-color 0.2s;
+    }
+
+    .endpoint:hover { border-color: rgba(249,115,22,0.3); }
+
+    .endpoint-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .endpoint-path {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .endpoint-desc {
+      color: var(--text-muted);
+      font-size: 13px;
+      margin-top: 8px;
+    }
+
+    /* ─── TABLES ─── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 20px;
+      font-size: 13.5px;
+    }
+
+    th {
+      text-align: left;
+      padding: 10px 14px;
+      background: var(--bg-card);
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    /* ─── FLOW DIAGRAM ─── */
+    .flow {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 16px 0;
+    }
+
+    .flow-step {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .flow-arrow { color: var(--accent); font-size: 18px; }
+
+    /* ─── TABS ─── */
+    .tabs { display: flex; gap: 0; margin: 16px 0 0; border-bottom: 1px solid var(--border); }
+
+    .tab {
+      padding: 10px 20px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ─── ALERT ─── */
+    .alert {
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin: 16px 0;
+      font-size: 13.5px;
+      border-left: 4px solid;
+    }
+
+    .alert-info { background: rgba(59,130,246,0.08); border-color: var(--blue); }
+    .alert-warning { background: rgba(234,179,8,0.08); border-color: var(--yellow); }
+    .alert-success { background: rgba(34,197,94,0.08); border-color: var(--green); }
+
+    .alert strong { color: #fff; }
+
+    /* ─── STATUS FLOW ─── */
+    .status-flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      margin: 12px 0;
+    }
+
+    .status-tag {
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 700;
+      font-family: monospace;
+    }
+
+    .s-pending { background: rgba(136,136,160,0.15); color: var(--text-muted); }
+    .s-paid { background: rgba(34,197,94,0.15); color: var(--green); }
+    .s-preparing { background: rgba(59,130,246,0.15); color: var(--blue); }
+    .s-ready { background: rgba(234,179,8,0.15); color: var(--yellow); }
+    .s-delivered { background: rgba(167,139,250,0.15); color: var(--purple); }
+    .s-cancelled { background: rgba(239,68,68,0.15); color: var(--red); }
+
+    /* ─── SCROLLBAR ─── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .overlay.open { display: block; }
+      .mobile-toggle { display: flex; align-items: center; justify-content: center; }
+      .main { margin-left: 0; padding: 24px 20px 80px; }
+      .hero { padding: 24px; }
+      .hero h1 { font-size: 26px; }
+    }
+
+    /* ─── SYNTAX HIGHLIGHTING ─── */
+    .hl-key { color: var(--purple); }
+    .hl-str { color: var(--green); }
+    .hl-num { color: var(--accent); }
+    .hl-comment { color: #5c5c7a; font-style: italic; }
+    .hl-type { color: var(--cyan); }
+    .hl-kw { color: var(--pink); }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- Mobile toggle -->
+<button class="mobile-toggle" onclick="toggleSidebar()">&#9776;</button>
+<div class="overlay" onclick="toggleSidebar()"></div>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <h1>O'Food API</h1>
+    <span>Documentation Développeur v1.0</span>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Introduction</div>
+    <a class="nav-link" href="#overview">Vue d'ensemble</a>
+    <a class="nav-link" href="#base-url">Base URL & Format</a>
+    <a class="nav-link" href="#response-format">Format des réponses</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Authentification</div>
+    <a class="nav-link" href="#auth-flow">Flux d'authentification</a>
+    <a class="nav-link" href="#auth-endpoints">Endpoints Auth</a>
+    <a class="nav-link" href="#jwt-tokens">Tokens JWT</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">API Endpoints</div>
+    <a class="nav-link" href="#users">Users</a>
+    <a class="nav-link" href="#restaurants">Restaurants</a>
+    <a class="nav-link" href="#dishes">Dishes</a>
+    <a class="nav-link" href="#menus">Menus</a>
+    <a class="nav-link" href="#orders">Orders</a>
+    <a class="nav-link" href="#payments">Payments</a>
+    <a class="nav-link" href="#ratings">Ratings</a>
+    <a class="nav-link" href="#admin">Admin</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Temps réel</div>
+    <a class="nav-link" href="#websocket">WebSocket (Socket.io)</a>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Intégration Frontend</div>
+    <a class="nav-link" href="#flutter">Flutter / Dart</a>
+    <a class="nav-link" href="#react">React / Next.js</a>
+    <a class="nav-link" href="#angular">Angular</a>
+  </div>
+</nav>
+
+<!-- Main content -->
+<div class="main">
+
+  <!-- HERO -->
+  <div class="hero" id="overview">
+    <h1>O'Food API</h1>
+    <p>Plateforme de commande de repas au Sénégal — REST API + WebSocket temps réel</p>
+    <div class="badges">
+      <span class="badge"><span class="dot" style="background:var(--green)"></span> NestJS 11</span>
+      <span class="badge"><span class="dot" style="background:var(--blue)"></span> PostgreSQL + Prisma</span>
+      <span class="badge"><span class="dot" style="background:var(--purple)"></span> JWT Auth</span>
+      <span class="badge"><span class="dot" style="background:var(--accent)"></span> Socket.io</span>
+      <span class="badge"><span class="dot" style="background:var(--cyan)"></span> Swagger /api/docs</span>
+    </div>
+  </div>
+
+  <!-- BASE URL -->
+  <h2 id="base-url">Base URL & Format</h2>
+
+  <div class="alert alert-info">
+    <strong>Base URL :</strong> <code>http://localhost:3000</code> (dev) — adaptez pour la production.<br>
+    <strong>Swagger UI :</strong> <code>/api/docs</code> — interface interactive pour tester tous les endpoints.
+  </div>
+
+  <p>Toutes les requêtes utilisent <code>Content-Type: application/json</code>. Les endpoints protégés requièrent le header :</p>
+
+  <pre><code>Authorization: Bearer &lt;accessToken&gt;</code></pre>
+
+  <!-- RESPONSE FORMAT -->
+  <h2 id="response-format">Format des réponses</h2>
+
+  <h3>Succès</h3>
+  <p>Toute réponse réussie est enveloppée dans ce format :</p>
+  <pre><code>{
+  <span class="hl-key">"success"</span>: <span class="hl-num">true</span>,
+  <span class="hl-key">"data"</span>: { ... },        <span class="hl-comment">// vos données</span>
+  <span class="hl-key">"message"</span>: <span class="hl-str">"OK"</span>,
+  <span class="hl-key">"timestamp"</span>: <span class="hl-str">"2026-02-28T12:00:00.000Z"</span>
+}</code></pre>
+
+  <h3>Erreur</h3>
+  <pre><code>{
+  <span class="hl-key">"success"</span>: <span class="hl-num">false</span>,
+  <span class="hl-key">"error"</span>: <span class="hl-str">"HTTP_401"</span>,
+  <span class="hl-key">"message"</span>: <span class="hl-str">"Identifiants incorrects"</span>,
+  <span class="hl-key">"statusCode"</span>: <span class="hl-num">401</span>
+}</code></pre>
+
+  <div class="alert alert-warning">
+    <strong>Tip :</strong> Vérifiez toujours <code>response.data.success</code> dans votre code frontend. Les erreurs de validation (422) contiennent un tableau de messages dans <code>message</code>.
+  </div>
+
+  <!-- AUTH FLOW -->
+  <h2 id="auth-flow">Flux d'authentification</h2>
+
+  <p>O'Food utilise une authentification par <strong>téléphone + PIN</strong> avec vérification OTP par SMS.</p>
+
+  <h3>Inscription</h3>
+  <div class="flow">
+    <span class="flow-step">POST /auth/register</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">SMS OTP envoyé</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">POST /auth/verify-otp</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step" style="border-color:var(--green);color:var(--green)">Tokens reçus</span>
+  </div>
+
+  <h3>Connexion</h3>
+  <div class="flow">
+    <span class="flow-step">POST /auth/login</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step" style="border-color:var(--green);color:var(--green)">Tokens reçus</span>
+  </div>
+
+  <h3>Rafraîchissement</h3>
+  <div class="flow">
+    <span class="flow-step">Access token expiré</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step">POST /auth/refresh</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="flow-step" style="border-color:var(--green);color:var(--green)">Nouveaux tokens</span>
+  </div>
+
+  <!-- AUTH ENDPOINTS -->
+  <h2 id="auth-endpoints">Endpoints Auth</h2>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-post">POST</span>
+      <span class="endpoint-path">/auth/register</span>
+      <span class="auth-badge auth-public">PUBLIC</span>
+    </div>
+    <p class="endpoint-desc">Créer un compte. Envoie un OTP par SMS.</p>
+    <pre><code>{
+  <span class="hl-key">"firstName"</span>: <span class="hl-str">"Moussa"</span>,
+  <span class="hl-key">"lastName"</span>: <span class="hl-str">"Diop"</span>,
+  <span class="hl-key">"phone"</span>: <span class="hl-str">"771234567"</span>,
+  <span class="hl-key">"pin"</span>: <span class="hl-str">"1234"</span>,
+  <span class="hl-key">"role"</span>: <span class="hl-str">"CLIENT"</span>,        <span class="hl-comment">// ou "RESTAURANT_OWNER"</span>
+  <span class="hl-key">"email"</span>: <span class="hl-str">"moussa@email.com"</span>  <span class="hl-comment">// optionnel</span>
+}</code></pre>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-post">POST</span>
+      <span class="endpoint-path">/auth/verify-otp</span>
+      <span class="auth-badge auth-public">PUBLIC</span>
+    </div>
+    <p class="endpoint-desc">Vérifier l'OTP reçu par SMS. Retourne les tokens JWT.</p>
+    <pre><code>{
+  <span class="hl-key">"phone"</span>: <span class="hl-str">"771234567"</span>,
+  <span class="hl-key">"code"</span>: <span class="hl-str">"4829"</span>          <span class="hl-comment">// 4 chiffres</span>
+}</code></pre>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-post">POST</span>
+      <span class="endpoint-path">/auth/login</span>
+      <span class="auth-badge auth-public">PUBLIC</span>
+    </div>
+    <p class="endpoint-desc">Connexion par téléphone + PIN.</p>
+    <pre><code>{
+  <span class="hl-key">"phone"</span>: <span class="hl-str">"771234567"</span>,
+  <span class="hl-key">"pin"</span>: <span class="hl-str">"1234"</span>
+}</code></pre>
+    <h4>Réponse (login &amp; verify-otp)</h4>
+    <pre><code>{
+  <span class="hl-key">"accessToken"</span>: <span class="hl-str">"eyJhbG..."</span>,
+  <span class="hl-key">"refreshToken"</span>: <span class="hl-str">"eyJhbG..."</span>,
+  <span class="hl-key">"user"</span>: {
+    <span class="hl-key">"id"</span>: <span class="hl-str">"uuid"</span>,
+    <span class="hl-key">"firstName"</span>: <span class="hl-str">"Moussa"</span>,
+    <span class="hl-key">"lastName"</span>: <span class="hl-str">"Diop"</span>,
+    <span class="hl-key">"phone"</span>: <span class="hl-str">"221771234567"</span>,
+    <span class="hl-key">"role"</span>: <span class="hl-str">"CLIENT"</span>,
+    <span class="hl-key">"isActive"</span>: <span class="hl-num">true</span>
+  }
+}</code></pre>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-post">POST</span>
+      <span class="endpoint-path">/auth/refresh</span>
+      <span class="auth-badge auth-public">PUBLIC</span>
+    </div>
+    <p class="endpoint-desc">Renouveler les tokens. Envoyer le refreshToken dans le body.</p>
+    <pre><code>{ <span class="hl-key">"refreshToken"</span>: <span class="hl-str">"eyJhbG..."</span> }</code></pre>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-post">POST</span>
+      <span class="endpoint-path">/auth/logout</span>
+      <span class="auth-badge auth-jwt">JWT</span>
+    </div>
+    <p class="endpoint-desc">Déconnexion. Blackliste le refresh token.</p>
+    <pre><code>{ <span class="hl-key">"refreshToken"</span>: <span class="hl-str">"eyJhbG..."</span> }</code></pre>
+  </div>
+
+  <!-- JWT -->
+  <h2 id="jwt-tokens">Tokens JWT</h2>
+
+  <table>
+    <tr><th>Token</th><th>Durée</th><th>Usage</th></tr>
+    <tr>
+      <td><code>accessToken</code></td>
+      <td>15 minutes</td>
+      <td>Header <code>Authorization: Bearer {token}</code></td>
+    </tr>
+    <tr>
+      <td><code>refreshToken</code></td>
+      <td>7 jours</td>
+      <td>Body de <code>POST /auth/refresh</code></td>
+    </tr>
+  </table>
+
+  <h4>Payload du accessToken</h4>
+  <pre><code>{
+  <span class="hl-key">"sub"</span>: <span class="hl-str">"user-uuid"</span>,    <span class="hl-comment">// User ID</span>
+  <span class="hl-key">"role"</span>: <span class="hl-str">"CLIENT"</span>,       <span class="hl-comment">// CLIENT | RESTAURANT_OWNER | ADMIN</span>
+  <span class="hl-key">"type"</span>: <span class="hl-str">"access"</span>,
+  <span class="hl-key">"exp"</span>: <span class="hl-num">1709136000</span>
+}</code></pre>
+
+  <!-- USERS -->
+  <h2 id="users">Users</h2>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="endpoint-path">/users/me</span>
+      <span class="auth-badge auth-jwt">JWT</span>
+    </div>
+    <p class="endpoint-desc">Profil de l'utilisateur connecté. Inclut le restaurant si OWNER.</p>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-patch">PATCH</span>
+      <span class="endpoint-path">/users/me</span>
+      <span class="auth-badge auth-jwt">JWT</span>
+    </div>
+    <p class="endpoint-desc">Modifier son profil (firstName, lastName, email).</p>
+  </div>
+
+  <!-- RESTAURANTS -->
+  <h2 id="restaurants">Restaurants</h2>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="endpoint-path">/restaurants</span>
+      <span class="auth-badge auth-public">PUBLIC</span>
+    </div>
+    <p class="endpoint-desc">Liste des restaurants vérifiés. Supporte le filtre géographique.</p>
+    <h4>Query params</h4>
+    <table>
+      <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+      <tr><td><code>lat</code></td><td>number</td><td>Latitude client</td></tr>
+      <tr><td><code>lng</code></td><td>number</td><td>Longitude client</td></tr>
+      <tr><td><code>radius</code></td><td>number</td><td>Rayon en km (défaut: 1)</td></tr>
+      <tr><td><code>isOpen</code></td><td>boolean</td><td>Filtrer ouverts/fermés</td></tr>
+    </table>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="endpoint-path">/restaurants/:id</span>
+      <span class="auth-badge auth-public">PUBLIC</span>
+    </div>
+    <p class="endpoint-desc">Détail d'un restaurant avec ses plats disponibles.</p>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-post">POST</span>
+      <span class="endpoint-path">/restaurants</span>
+      <span class="auth-badge auth-owner">OWNER</span>
+    </div>
+    <p class="endpoint-desc">Créer son restaurant. Un seul par propriétaire.</p>
+    <pre><code>{
+  <span class="hl-key">"name"</span>: <span class="hl-str">"Chez Fatou"</span>,
+  <span class="hl-key">"logoUrl"</span>: <span class="hl-str">"https://..."</span>,
+  <span class="hl-key">"address"</span>: <span class="hl-str">"Médina, Dakar"</span>,
+  <span class="hl-key">"lat"</span>: <span class="hl-num">14.6928</span>,
+  <span class="hl-key">"lng"</span>: <span class="hl-num">-17.4467</span>,
+  <span class="hl-key">"description"</span>: <span class="hl-str">"Cuisine sénégalaise traditionnelle"</span>,
+  <span class="hl-key">"dailyCapacity"</span>: <span class="hl-str">"50 repas/jour"</span>,
+  <span class="hl-key">"avgPrepTime"</span>: <span class="hl-num">25</span>
+}</code></pre>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-patch">PATCH</span>
+      <span class="endpoint-path">/restaurants/:id</span>
+      <span class="auth-badge auth-owner">OWNER</span>
+    </div>
+    <p class="endpoint-desc">Modifier son restaurant (nom, statut ouvert/fermé, etc.).</p>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="endpoint-path">/restaurants/:id/wallet</span>
+      <span class="auth-badge auth-owner">OWNER</span>
+    </div>
+    <p class="endpoint-desc">Solde du portefeuille et 50 dernières transactions.</p>
+  </div>
+
+  <!-- DISHES -->
+  <h2 id="dishes">Dishes (Plats)</h2>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="endpoint-path">/dishes</span>
+      <span class="auth-badge auth-public">PUBLIC</span>
+    </div>
+    <p class="endpoint-desc">Liste des plats. Supporte filtre géo, catégorie, et restaurantId.</p>
+    <h4>Query params</h4>
+    <table>
+      <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+      <tr><td><code>lat</code>, <code>lng</code>, <code>radius</code></td><td>number</td><td>Filtre géographique</td></tr>
+      <tr><td><code>category</code></td><td>enum</td><td><code>BREAKFAST</code> | <code>LUNCH</code> | <code>DINNER</code> | <code>DESSERT</code></td></tr>
+      <tr><td><code>restaurantId</code></td><td>uuid</td><td>Filtrer par restaurant</td></tr>
+    </table>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="endpoint-path">/dishes/:id</span>
+      <span class="auth-badge auth-public">PUBLIC</span>
+    </div>
+    <p class="endpoint-desc">Détail d'un plat avec info restaurant.</p>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-post">POST</span>
+      <span class="endpoint-path">/restaurants/:restaurantId/dishes</span>
+      <span class="auth-badge auth-owner">OWNER</span>
+    </div>
+    <p class="endpoint-desc">Ajouter un plat à son restaurant.</p>
+    <pre><code>{
+  <span class="hl-key">"name"</span>: <span class="hl-str">"Thiéboudienne"</span>,
+  <span class="hl-key">"description"</span>: <span class="hl-str">"Riz au poisson sénégalais"</span>,
+  <span class="hl-key">"price"</span>: <span class="hl-num">2500</span>,
+  <span class="hl-key">"photoUrl"</span>: <span class="hl-str">"https://..."</span>,
+  <span class="hl-key">"category"</span>: <span class="hl-str">"LUNCH"</span>
+}</code></pre>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-patch">PATCH</span>
+      <span class="endpoint-path">/dishes/:id</span>
+      <span class="auth-badge auth-owner">OWNER</span>
+    </div>
+    <p class="endpoint-desc">Modifier un plat (prix, disponibilité, etc.).</p>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-delete">DELETE</span>
+      <span class="endpoint-path">/dishes/:id</span>
+      <span class="auth-badge auth-owner">OWNER</span>
+    </div>
+    <p class="endpoint-desc">Supprimer un plat.</p>
+  </div>
+
+  <!-- MENUS -->
+  <h2 id="menus">Menus (Hebdomadaires)</h2>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="endpoint-path">/restaurants/:id/menus</span>
+      <span class="auth-badge auth-public">PUBLIC</span>
+    </div>
+    <p class="endpoint-desc">Menu de la semaine avec les plats par jour.</p>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="endpoint-path">/restaurants/:id/menus/today</span>
+      <span class="auth-badge auth-public">PUBLIC</span>
+    </div>
+    <p class="endpoint-desc">Menu du jour uniquement.</p>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-put">PUT</span>
+      <span class="endpoint-path">/restaurants/:id/menus</span>
+      <span class="auth-badge auth-owner">OWNER</span>
+    </div>
+    <p class="endpoint-desc">Configurer le menu de la semaine. Remplace l'existant.</p>
+    <pre><code>{
+  <span class="hl-key">"menus"</span>: [
+    {
+      <span class="hl-key">"dayOfWeek"</span>: <span class="hl-str">"MONDAY"</span>,
+      <span class="hl-key">"dishIds"</span>: [<span class="hl-str">"uuid-dish-1"</span>, <span class="hl-str">"uuid-dish-2"</span>]
+    },
+    {
+      <span class="hl-key">"dayOfWeek"</span>: <span class="hl-str">"TUESDAY"</span>,
+      <span class="hl-key">"dishIds"</span>: [<span class="hl-str">"uuid-dish-3"</span>]
+    }
+  ]
+}</code></pre>
+    <div class="alert alert-info">
+      <strong>Jours :</strong> <code>MONDAY</code> <code>TUESDAY</code> <code>WEDNESDAY</code> <code>THURSDAY</code> <code>FRIDAY</code> <code>SATURDAY</code> <code>SUNDAY</code>
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-patch">PATCH</span>
+      <span class="endpoint-path">/menu-items/:id/toggle</span>
+      <span class="auth-badge auth-owner">OWNER</span>
+    </div>
+    <p class="endpoint-desc">Basculer un plat du menu entre disponible/épuisé.</p>
+  </div>
+
+  <!-- ORDERS -->
+  <h2 id="orders">Orders (Commandes)</h2>
+
+  <h3>Flux de commande</h3>
+  <div class="status-flow">
+    <span class="status-tag s-pending">PENDING</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="status-tag s-paid">PAID</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="status-tag s-preparing">PREPARING</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="status-tag s-ready">READY</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="status-tag s-delivered">DELIVERED</span>
+  </div>
+  <div class="status-flow" style="margin-top:4px">
+    <span class="status-tag s-pending">PENDING</span>
+    <span class="flow-arrow">&rarr;</span>
+    <span class="status-tag s-cancelled">CANCELLED</span>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-post">POST</span>
+      <span class="endpoint-path">/orders</span>
+      <span class="auth-badge auth-client">CLIENT</span>
+    </div>
+    <p class="endpoint-desc">Créer une commande. Les prix sont capturés au moment de la commande.</p>
+    <pre><code>{
+  <span class="hl-key">"items"</span>: [
+    { <span class="hl-key">"dishId"</span>: <span class="hl-str">"uuid-dish-1"</span>, <span class="hl-key">"quantity"</span>: <span class="hl-num">2</span> },
+    { <span class="hl-key">"dishId"</span>: <span class="hl-str">"uuid-dish-2"</span>, <span class="hl-key">"quantity"</span>: <span class="hl-num">1</span> }
+  ]
+}</code></pre>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="endpoint-path">/orders/me</span>
+      <span class="auth-badge auth-client">CLIENT</span>
+    </div>
+    <p class="endpoint-desc">Historique de mes commandes avec détails des plats.</p>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="endpoint-path">/orders/:id</span>
+      <span class="auth-badge auth-jwt">JWT</span>
+    </div>
+    <p class="endpoint-desc">Détail d'une commande (client ou owner concerné).</p>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="endpoint-path">/orders/restaurant</span>
+      <span class="auth-badge auth-owner">OWNER</span>
+    </div>
+    <p class="endpoint-desc">Commandes reçues par mon restaurant.</p>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-patch">PATCH</span>
+      <span class="endpoint-path">/orders/:id/status</span>
+      <span class="auth-badge auth-owner">OWNER</span>
+    </div>
+    <p class="endpoint-desc">Mettre à jour le statut d'une commande.</p>
+    <pre><code>{ <span class="hl-key">"status"</span>: <span class="hl-str">"PREPARING"</span> }</code></pre>
+  </div>
+
+  <!-- PAYMENTS -->
+  <h2 id="payments">Payments (Paiements)</h2>
+
+  <div class="alert alert-success">
+    <strong>Mode actuel :</strong> Les paiements sont en mode <strong>mock</strong> (simulé). Tous les paiements réussissent automatiquement. Prêt pour l'intégration Wave / Orange Money / Free Money.
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-post">POST</span>
+      <span class="endpoint-path">/payments/initiate</span>
+      <span class="auth-badge auth-client">CLIENT</span>
+    </div>
+    <p class="endpoint-desc">Initier un paiement pour une commande PENDING.</p>
+    <pre><code>{
+  <span class="hl-key">"orderId"</span>: <span class="hl-str">"uuid-order"</span>,
+  <span class="hl-key">"paymentMethod"</span>: <span class="hl-str">"WAVE"</span>,     <span class="hl-comment">// WAVE | ORANGE_MONEY | FREE_MONEY</span>
+  <span class="hl-key">"phoneNumber"</span>: <span class="hl-str">"771234567"</span>
+}</code></pre>
+    <div class="alert alert-info">
+      <strong>Effet :</strong> Crée une Transaction, passe la commande en <code>PAID</code>, crédite le wallet du restaurant. WebSocket + SMS envoyés au restaurant.
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-post">POST</span>
+      <span class="endpoint-path">/payments/:id/verify</span>
+      <span class="auth-badge auth-client">CLIENT</span>
+    </div>
+    <p class="endpoint-desc">Vérifier le statut d'un paiement.</p>
+    <pre><code>{ <span class="hl-key">"reference"</span>: <span class="hl-str">"MOCK-A1B2C3D4"</span> }</code></pre>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="endpoint-path">/payments/order/:orderId</span>
+      <span class="auth-badge auth-jwt">JWT</span>
+    </div>
+    <p class="endpoint-desc">Voir les transactions d'une commande.</p>
+  </div>
+
+  <!-- RATINGS -->
+  <h2 id="ratings">Ratings (Avis)</h2>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-post">POST</span>
+      <span class="endpoint-path">/ratings</span>
+      <span class="auth-badge auth-client">CLIENT</span>
+    </div>
+    <p class="endpoint-desc">Noter une commande livrée (1-5 étoiles). Une seule note par commande.</p>
+    <pre><code>{
+  <span class="hl-key">"orderId"</span>: <span class="hl-str">"uuid-order"</span>,
+  <span class="hl-key">"stars"</span>: <span class="hl-num">4</span>,
+  <span class="hl-key">"comment"</span>: <span class="hl-str">"Très bon thiéboudienne !"</span>  <span class="hl-comment">// optionnel</span>
+}</code></pre>
+    <div class="alert alert-info">
+      <strong>Effet :</strong> Met à jour automatiquement le <code>avgRating</code> et <code>totalRatings</code> du restaurant.
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="endpoint-path">/ratings/restaurant/:id</span>
+      <span class="auth-badge auth-public">PUBLIC</span>
+    </div>
+    <p class="endpoint-desc">Tous les avis d'un restaurant, avec nom de l'auteur.</p>
+  </div>
+
+  <!-- ADMIN -->
+  <h2 id="admin">Admin</h2>
+
+  <div class="alert alert-warning">
+    <strong>Accès :</strong> Tous les endpoints admin requièrent le rôle <code>ADMIN</code>. Un CLIENT ou OWNER recevra une <code>403 Forbidden</code>.
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="endpoint-path">/admin/dashboard</span>
+      <span class="auth-badge auth-admin">ADMIN</span>
+    </div>
+    <p class="endpoint-desc">Statistiques globales : users, restaurants, commandes, revenus, transactions.</p>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="endpoint-path">/admin/users</span>
+      <span class="auth-badge auth-admin">ADMIN</span>
+    </div>
+    <p class="endpoint-desc">Liste de tous les utilisateurs (sans pinHash).</p>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="endpoint-path">/admin/restaurants</span>
+      <span class="auth-badge auth-admin">ADMIN</span>
+    </div>
+    <p class="endpoint-desc">Tous les restaurants avec compteurs (plats, avis, commandes).</p>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-patch">PATCH</span>
+      <span class="endpoint-path">/admin/restaurants/:id/verify</span>
+      <span class="auth-badge auth-admin">ADMIN</span>
+    </div>
+    <p class="endpoint-desc">Valider/vérifier un restaurant.</p>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="endpoint-path">/admin/orders</span>
+      <span class="auth-badge auth-admin">ADMIN</span>
+    </div>
+    <p class="endpoint-desc">Toutes les commandes avec détails.</p>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="endpoint-path">/admin/transactions</span>
+      <span class="auth-badge auth-admin">ADMIN</span>
+    </div>
+    <p class="endpoint-desc">Toutes les transactions avec liens commande/restaurant.</p>
+  </div>
+
+  <!-- WEBSOCKET -->
+  <h2 id="websocket">WebSocket (Socket.io)</h2>
+
+  <p>L'API utilise <strong>Socket.io</strong> pour les notifications temps réel des commandes.</p>
+
+  <div class="alert alert-info">
+    <strong>URL :</strong> <code>ws://localhost:3000</code> (même port que le serveur HTTP)
+  </div>
+
+  <h3>Rooms</h3>
+  <table>
+    <tr><th>Événement client</th><th>Payload</th><th>Description</th></tr>
+    <tr>
+      <td><code>join-restaurant</code></td>
+      <td><code>"restaurant-uuid"</code></td>
+      <td>Rejoint la room du restaurant (pour les owners)</td>
+    </tr>
+    <tr>
+      <td><code>join-user</code></td>
+      <td><code>"user-uuid"</code></td>
+      <td>Rejoint la room user (pour les clients)</td>
+    </tr>
+  </table>
+
+  <h3>Événements serveur</h3>
+  <table>
+    <tr><th>Événement</th><th>Payload</th><th>Destinataire</th></tr>
+    <tr>
+      <td><code>new-order</code></td>
+      <td><code>{ orderId, totalAmount, items }</code></td>
+      <td>Room <code>restaurant:{id}</code></td>
+    </tr>
+    <tr>
+      <td><code>order-status</code></td>
+      <td><code>{ orderId, status }</code></td>
+      <td>Room <code>restaurant:{id}</code> + <code>user:{id}</code></td>
+    </tr>
+  </table>
+
+  <!-- FLUTTER -->
+  <h2 id="flutter">Intégration Flutter / Dart</h2>
+
+  <h3>1. Client HTTP (Dio + interceptor)</h3>
+
+  <div class="code-header">
+    <span>lib/core/api_client.dart</span>
+    <button class="copy-btn" onclick="copyCode(this)">Copier</button>
+  </div>
+  <pre><code><span class="hl-kw">import</span> <span class="hl-str">'package:dio/dio.dart'</span>;
+<span class="hl-kw">import</span> <span class="hl-str">'package:flutter_secure_storage/flutter_secure_storage.dart'</span>;
+
+<span class="hl-kw">class</span> <span class="hl-type">ApiClient</span> {
+  <span class="hl-kw">static const</span> baseUrl = <span class="hl-str">'http://10.0.2.2:3000'</span>; <span class="hl-comment">// Android emulator</span>
+
+  <span class="hl-kw">final</span> _dio = Dio(BaseOptions(baseUrl: baseUrl));
+  <span class="hl-kw">final</span> _storage = <span class="hl-kw">const</span> FlutterSecureStorage();
+
+  ApiClient() {
+    _dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (options, handler) <span class="hl-kw">async</span> {
+        <span class="hl-kw">final</span> token = <span class="hl-kw">await</span> _storage.read(key: <span class="hl-str">'accessToken'</span>);
+        <span class="hl-kw">if</span> (token != <span class="hl-num">null</span>) {
+          options.headers[<span class="hl-str">'Authorization'</span>] = <span class="hl-str">'Bearer </span>$token<span class="hl-str">'</span>;
+        }
+        handler.next(options);
+      },
+      onError: (error, handler) <span class="hl-kw">async</span> {
+        <span class="hl-kw">if</span> (error.response?.statusCode == <span class="hl-num">401</span>) {
+          <span class="hl-kw">final</span> refreshed = <span class="hl-kw">await</span> _refreshToken();
+          <span class="hl-kw">if</span> (refreshed) {
+            <span class="hl-kw">return</span> handler.resolve(<span class="hl-kw">await</span> _retry(error.requestOptions));
+          }
+        }
+        handler.next(error);
+      },
+    ));
+  }
+
+  <span class="hl-type">Future</span>&lt;<span class="hl-type">bool</span>&gt; _refreshToken() <span class="hl-kw">async</span> {
+    <span class="hl-kw">try</span> {
+      <span class="hl-kw">final</span> rt = <span class="hl-kw">await</span> _storage.read(key: <span class="hl-str">'refreshToken'</span>);
+      <span class="hl-kw">final</span> res = <span class="hl-kw">await</span> Dio().post(
+        <span class="hl-str">'$baseUrl/auth/refresh'</span>,
+        data: {<span class="hl-str">'refreshToken'</span>: rt},
+      );
+      <span class="hl-kw">await</span> _storage.write(key: <span class="hl-str">'accessToken'</span>, value: res.data[<span class="hl-str">'data'</span>][<span class="hl-str">'accessToken'</span>]);
+      <span class="hl-kw">await</span> _storage.write(key: <span class="hl-str">'refreshToken'</span>, value: res.data[<span class="hl-str">'data'</span>][<span class="hl-str">'refreshToken'</span>]);
+      <span class="hl-kw">return true</span>;
+    } <span class="hl-kw">catch</span> (_) { <span class="hl-kw">return false</span>; }
+  }
+
+  Dio <span class="hl-kw">get</span> dio =&gt; _dio;
+}</code></pre>
+
+  <h3>2. Socket.io (temps réel)</h3>
+
+  <div class="code-header">
+    <span>lib/core/socket_service.dart</span>
+    <button class="copy-btn" onclick="copyCode(this)">Copier</button>
+  </div>
+  <pre><code><span class="hl-kw">import</span> <span class="hl-str">'package:socket_io_client/socket_io_client.dart'</span> <span class="hl-kw">as</span> io;
+
+<span class="hl-kw">class</span> <span class="hl-type">SocketService</span> {
+  <span class="hl-kw">late final</span> io.Socket socket;
+
+  <span class="hl-kw">void</span> connect(<span class="hl-type">String</span> userId) {
+    socket = io.io(<span class="hl-str">'http://10.0.2.2:3000'</span>, &lt;<span class="hl-type">String</span>, <span class="hl-kw">dynamic</span>&gt;{
+      <span class="hl-str">'transports'</span>: [<span class="hl-str">'websocket'</span>],
+      <span class="hl-str">'autoConnect'</span>: <span class="hl-num">true</span>,
+    });
+
+    socket.emit(<span class="hl-str">'join-user'</span>, userId);
+
+    socket.on(<span class="hl-str">'order-status'</span>, (data) {
+      print(<span class="hl-str">'Statut mis à jour: $data'</span>);
+      <span class="hl-comment">// Notifier votre state management (Provider, Riverpod, Bloc...)</span>
+    });
+
+    socket.on(<span class="hl-str">'new-order'</span>, (data) {
+      print(<span class="hl-str">'Nouvelle commande: $data'</span>);
+    });
+  }
+
+  <span class="hl-kw">void</span> joinRestaurant(<span class="hl-type">String</span> restaurantId) {
+    socket.emit(<span class="hl-str">'join-restaurant'</span>, restaurantId);
+  }
+
+  <span class="hl-kw">void</span> dispose() =&gt; socket.dispose();
+}</code></pre>
+
+  <h3>3. Exemple d'appel</h3>
+  <pre><code><span class="hl-comment">// Lister les restaurants à proximité</span>
+<span class="hl-kw">final</span> res = <span class="hl-kw">await</span> api.dio.get(<span class="hl-str">'/restaurants'</span>, queryParameters: {
+  <span class="hl-str">'lat'</span>: <span class="hl-num">14.7167</span>,
+  <span class="hl-str">'lng'</span>: <span class="hl-num">-17.4677</span>,
+  <span class="hl-str">'radius'</span>: <span class="hl-num">5</span>,
+});
+<span class="hl-kw">final</span> restaurants = res.data[<span class="hl-str">'data'</span>]; <span class="hl-comment">// List&lt;dynamic&gt;</span>
+
+<span class="hl-comment">// Passer une commande</span>
+<span class="hl-kw">final</span> order = <span class="hl-kw">await</span> api.dio.post(<span class="hl-str">'/orders'</span>, data: {
+  <span class="hl-str">'items'</span>: [
+    {<span class="hl-str">'dishId'</span>: <span class="hl-str">'uuid'</span>, <span class="hl-str">'quantity'</span>: <span class="hl-num">2</span>},
+  ],
+});
+
+<span class="hl-comment">// Payer</span>
+<span class="hl-kw">await</span> api.dio.post(<span class="hl-str">'/payments/initiate'</span>, data: {
+  <span class="hl-str">'orderId'</span>: order.data[<span class="hl-str">'data'</span>][<span class="hl-str">'id'</span>],
+  <span class="hl-str">'paymentMethod'</span>: <span class="hl-str">'WAVE'</span>,
+  <span class="hl-str">'phoneNumber'</span>: <span class="hl-str">'771234567'</span>,
+});</code></pre>
+
+  <!-- REACT -->
+  <h2 id="react">Intégration React / Next.js</h2>
+
+  <h3>1. Client Axios avec refresh auto</h3>
+
+  <div class="code-header">
+    <span>lib/api.ts</span>
+    <button class="copy-btn" onclick="copyCode(this)">Copier</button>
+  </div>
+  <pre><code><span class="hl-kw">import</span> axios <span class="hl-kw">from</span> <span class="hl-str">'axios'</span>;
+
+<span class="hl-kw">const</span> api = axios.create({
+  baseURL: <span class="hl-str">'http://localhost:3000'</span>,
+  headers: { <span class="hl-str">'Content-Type'</span>: <span class="hl-str">'application/json'</span> },
+});
+
+api.interceptors.request.use((config) =&gt; {
+  <span class="hl-kw">const</span> token = localStorage.getItem(<span class="hl-str">'accessToken'</span>);
+  <span class="hl-kw">if</span> (token) config.headers.Authorization = <span class="hl-str">`Bearer ${</span>token<span class="hl-str">}`</span>;
+  <span class="hl-kw">return</span> config;
+});
+
+api.interceptors.response.use(
+  (res) =&gt; res,
+  <span class="hl-kw">async</span> (error) =&gt; {
+    <span class="hl-kw">const</span> original = error.config;
+    <span class="hl-kw">if</span> (error.response?.status === <span class="hl-num">401</span> &amp;&amp; !original._retry) {
+      original._retry = <span class="hl-num">true</span>;
+      <span class="hl-kw">try</span> {
+        <span class="hl-kw">const</span> { data } = <span class="hl-kw">await</span> axios.post(<span class="hl-str">'http://localhost:3000/auth/refresh'</span>, {
+          refreshToken: localStorage.getItem(<span class="hl-str">'refreshToken'</span>),
+        });
+        localStorage.setItem(<span class="hl-str">'accessToken'</span>, data.data.accessToken);
+        localStorage.setItem(<span class="hl-str">'refreshToken'</span>, data.data.refreshToken);
+        original.headers.Authorization = <span class="hl-str">`Bearer ${</span>data.data.accessToken<span class="hl-str">}`</span>;
+        <span class="hl-kw">return</span> api(original);
+      } <span class="hl-kw">catch</span> {
+        localStorage.clear();
+        window.location.href = <span class="hl-str">'/login'</span>;
+      }
+    }
+    <span class="hl-kw">return</span> Promise.reject(error);
+  }
+);
+
+<span class="hl-kw">export default</span> api;</code></pre>
+
+  <h3>2. Socket.io (temps réel)</h3>
+
+  <div class="code-header">
+    <span>hooks/useSocket.ts</span>
+    <button class="copy-btn" onclick="copyCode(this)">Copier</button>
+  </div>
+  <pre><code><span class="hl-kw">import</span> { useEffect, useRef } <span class="hl-kw">from</span> <span class="hl-str">'react'</span>;
+<span class="hl-kw">import</span> { io, <span class="hl-type">Socket</span> } <span class="hl-kw">from</span> <span class="hl-str">'socket.io-client'</span>;
+
+<span class="hl-kw">export function</span> useSocket(userId: <span class="hl-type">string</span>, restaurantId?: <span class="hl-type">string</span>) {
+  <span class="hl-kw">const</span> socketRef = useRef&lt;<span class="hl-type">Socket</span>&gt;();
+
+  useEffect(() =&gt; {
+    <span class="hl-kw">const</span> socket = io(<span class="hl-str">'http://localhost:3000'</span>, {
+      transports: [<span class="hl-str">'websocket'</span>],
+    });
+
+    socket.emit(<span class="hl-str">'join-user'</span>, userId);
+    <span class="hl-kw">if</span> (restaurantId) socket.emit(<span class="hl-str">'join-restaurant'</span>, restaurantId);
+
+    socket.on(<span class="hl-str">'new-order'</span>, (data) =&gt; {
+      console.log(<span class="hl-str">'Nouvelle commande:'</span>, data);
+      <span class="hl-comment">// toast.success('Nouvelle commande reçue !')</span>
+    });
+
+    socket.on(<span class="hl-str">'order-status'</span>, (data) =&gt; {
+      console.log(<span class="hl-str">'Statut:'</span>, data);
+      <span class="hl-comment">// Mettre à jour le state (React Query, Zustand, etc.)</span>
+    });
+
+    socketRef.current = socket;
+    <span class="hl-kw">return</span> () =&gt; { socket.disconnect(); };
+  }, [userId, restaurantId]);
+
+  <span class="hl-kw">return</span> socketRef;
+}</code></pre>
+
+  <h3>3. Exemple complet (React Query)</h3>
+  <pre><code><span class="hl-kw">import</span> api <span class="hl-kw">from</span> <span class="hl-str">'./lib/api'</span>;
+<span class="hl-kw">import</span> { useQuery } <span class="hl-kw">from</span> <span class="hl-str">'@tanstack/react-query'</span>;
+
+<span class="hl-comment">// Restaurants à proximité</span>
+<span class="hl-kw">const</span> { data: restaurants } = useQuery({
+  queryKey: [<span class="hl-str">'restaurants'</span>, lat, lng],
+  queryFn: () =&gt; api.get(<span class="hl-str">'/restaurants'</span>, {
+    params: { lat, lng, radius: <span class="hl-num">5</span> }
+  }).then(r =&gt; r.data.data),
+});
+
+<span class="hl-comment">// Commande + paiement</span>
+<span class="hl-kw">const</span> order = <span class="hl-kw">await</span> api.post(<span class="hl-str">'/orders'</span>, {
+  items: [{ dishId: <span class="hl-str">'uuid'</span>, quantity: <span class="hl-num">2</span> }],
+});
+<span class="hl-kw">await</span> api.post(<span class="hl-str">'/payments/initiate'</span>, {
+  orderId: order.data.data.id,
+  paymentMethod: <span class="hl-str">'WAVE'</span>,
+  phoneNumber: <span class="hl-str">'771234567'</span>,
+});</code></pre>
+
+  <!-- ANGULAR -->
+  <h2 id="angular">Intégration Angular</h2>
+
+  <h3>1. HTTP Interceptor</h3>
+
+  <div class="code-header">
+    <span>src/app/core/auth.interceptor.ts</span>
+    <button class="copy-btn" onclick="copyCode(this)">Copier</button>
+  </div>
+  <pre><code><span class="hl-kw">import</span> { Injectable } <span class="hl-kw">from</span> <span class="hl-str">'@angular/core'</span>;
+<span class="hl-kw">import</span> {
+  HttpInterceptor, HttpRequest, HttpHandler,
+  HttpEvent, HttpErrorResponse
+} <span class="hl-kw">from</span> <span class="hl-str">'@angular/common/http'</span>;
+<span class="hl-kw">import</span> { Observable, throwError, BehaviorSubject } <span class="hl-kw">from</span> <span class="hl-str">'rxjs'</span>;
+<span class="hl-kw">import</span> { catchError, switchMap, filter, take } <span class="hl-kw">from</span> <span class="hl-str">'rxjs/operators'</span>;
+<span class="hl-kw">import</span> { AuthService } <span class="hl-kw">from</span> <span class="hl-str">'./auth.service'</span>;
+
+@Injectable()
+<span class="hl-kw">export class</span> <span class="hl-type">AuthInterceptor</span> <span class="hl-kw">implements</span> <span class="hl-type">HttpInterceptor</span> {
+  <span class="hl-kw">private</span> isRefreshing = <span class="hl-num">false</span>;
+  <span class="hl-kw">private</span> refreshSubject = <span class="hl-kw">new</span> BehaviorSubject&lt;<span class="hl-type">string</span> | <span class="hl-num">null</span>&gt;(<span class="hl-num">null</span>);
+
+  constructor(<span class="hl-kw">private</span> auth: <span class="hl-type">AuthService</span>) {}
+
+  intercept(req: <span class="hl-type">HttpRequest</span>&lt;<span class="hl-kw">any</span>&gt;, next: <span class="hl-type">HttpHandler</span>): <span class="hl-type">Observable</span>&lt;<span class="hl-type">HttpEvent</span>&lt;<span class="hl-kw">any</span>&gt;&gt; {
+    <span class="hl-kw">const</span> token = localStorage.getItem(<span class="hl-str">'accessToken'</span>);
+    <span class="hl-kw">const</span> authReq = token
+      ? req.clone({ setHeaders: { Authorization: <span class="hl-str">`Bearer ${</span>token<span class="hl-str">}`</span> } })
+      : req;
+
+    <span class="hl-kw">return</span> next.handle(authReq).pipe(
+      catchError((err: <span class="hl-type">HttpErrorResponse</span>) =&gt; {
+        <span class="hl-kw">if</span> (err.status === <span class="hl-num">401</span> &amp;&amp; !req.url.includes(<span class="hl-str">'/auth/'</span>)) {
+          <span class="hl-kw">return</span> <span class="hl-kw">this</span>.handle401(req, next);
+        }
+        <span class="hl-kw">return</span> throwError(() =&gt; err);
+      })
+    );
+  }
+
+  <span class="hl-kw">private</span> handle401(req: <span class="hl-type">HttpRequest</span>&lt;<span class="hl-kw">any</span>&gt;, next: <span class="hl-type">HttpHandler</span>) {
+    <span class="hl-kw">if</span> (!<span class="hl-kw">this</span>.isRefreshing) {
+      <span class="hl-kw">this</span>.isRefreshing = <span class="hl-num">true</span>;
+      <span class="hl-kw">this</span>.refreshSubject.next(<span class="hl-num">null</span>);
+
+      <span class="hl-kw">return this</span>.auth.refresh().pipe(
+        switchMap((tokens) =&gt; {
+          <span class="hl-kw">this</span>.isRefreshing = <span class="hl-num">false</span>;
+          <span class="hl-kw">this</span>.refreshSubject.next(tokens.accessToken);
+          <span class="hl-kw">return</span> next.handle(req.clone({
+            setHeaders: { Authorization: <span class="hl-str">`Bearer ${</span>tokens.accessToken<span class="hl-str">}`</span> }
+          }));
+        })
+      );
+    }
+
+    <span class="hl-kw">return this</span>.refreshSubject.pipe(
+      filter(token =&gt; token !== <span class="hl-num">null</span>),
+      take(<span class="hl-num">1</span>),
+      switchMap(token =&gt; next.handle(req.clone({
+        setHeaders: { Authorization: <span class="hl-str">`Bearer ${</span>token<span class="hl-str">}`</span> }
+      })))
+    );
+  }
+}</code></pre>
+
+  <h3>2. Socket.io Service</h3>
+
+  <div class="code-header">
+    <span>src/app/core/socket.service.ts</span>
+    <button class="copy-btn" onclick="copyCode(this)">Copier</button>
+  </div>
+  <pre><code><span class="hl-kw">import</span> { Injectable } <span class="hl-kw">from</span> <span class="hl-str">'@angular/core'</span>;
+<span class="hl-kw">import</span> { io, <span class="hl-type">Socket</span> } <span class="hl-kw">from</span> <span class="hl-str">'socket.io-client'</span>;
+<span class="hl-kw">import</span> { Subject } <span class="hl-kw">from</span> <span class="hl-str">'rxjs'</span>;
+
+@Injectable({ providedIn: <span class="hl-str">'root'</span> })
+<span class="hl-kw">export class</span> <span class="hl-type">SocketService</span> {
+  <span class="hl-kw">private</span> socket!: <span class="hl-type">Socket</span>;
+
+  newOrder$ = <span class="hl-kw">new</span> Subject&lt;<span class="hl-kw">any</span>&gt;();
+  orderStatus$ = <span class="hl-kw">new</span> Subject&lt;{ orderId: <span class="hl-type">string</span>; status: <span class="hl-type">string</span> }&gt;();
+
+  connect(userId: <span class="hl-type">string</span>, restaurantId?: <span class="hl-type">string</span>) {
+    <span class="hl-kw">this</span>.socket = io(<span class="hl-str">'http://localhost:3000'</span>, {
+      transports: [<span class="hl-str">'websocket'</span>],
+    });
+
+    <span class="hl-kw">this</span>.socket.emit(<span class="hl-str">'join-user'</span>, userId);
+    <span class="hl-kw">if</span> (restaurantId) <span class="hl-kw">this</span>.socket.emit(<span class="hl-str">'join-restaurant'</span>, restaurantId);
+
+    <span class="hl-kw">this</span>.socket.on(<span class="hl-str">'new-order'</span>, (data) =&gt; <span class="hl-kw">this</span>.newOrder$.next(data));
+    <span class="hl-kw">this</span>.socket.on(<span class="hl-str">'order-status'</span>, (data) =&gt; <span class="hl-kw">this</span>.orderStatus$.next(data));
+  }
+
+  disconnect() { <span class="hl-kw">this</span>.socket?.disconnect(); }
+}</code></pre>
+
+  <h3>3. Exemple d'utilisation</h3>
+  <pre><code><span class="hl-comment">// Dans un component</span>
+<span class="hl-kw">constructor</span>(<span class="hl-kw">private</span> http: <span class="hl-type">HttpClient</span>, <span class="hl-kw">private</span> ws: <span class="hl-type">SocketService</span>) {}
+
+ngOnInit() {
+  <span class="hl-comment">// Restaurants proches</span>
+  <span class="hl-kw">this</span>.http.get(<span class="hl-str">'http://localhost:3000/restaurants'</span>, {
+    params: { lat: <span class="hl-num">14.7167</span>, lng: <span class="hl-num">-17.4677</span>, radius: <span class="hl-num">5</span> }
+  }).subscribe(({ data }: <span class="hl-kw">any</span>) =&gt; <span class="hl-kw">this</span>.restaurants = data);
+
+  <span class="hl-comment">// Écouter les mises à jour en temps réel</span>
+  <span class="hl-kw">this</span>.ws.orderStatus$.subscribe(({ orderId, status }) =&gt; {
+    console.log(<span class="hl-str">`Commande ${</span>orderId<span class="hl-str">} → ${</span>status<span class="hl-str">}`</span>);
+  });
+}</code></pre>
+
+  <br><br>
+  <div class="alert alert-success" style="text-align:center">
+    <strong>Swagger interactif disponible sur <code>/api/docs</code></strong> — testez tous les endpoints directement dans le navigateur.
+  </div>
+
+</div>
+
+<script>
+  // Sidebar toggle (mobile)
+  function toggleSidebar() {
+    document.querySelector('.sidebar').classList.toggle('open');
+    document.querySelector('.overlay').classList.toggle('open');
+  }
+
+  // Copy code
+  function copyCode(btn) {
+    const code = btn.closest('.code-header').nextElementSibling.textContent;
+    navigator.clipboard.writeText(code);
+    btn.textContent = 'Copié !';
+    setTimeout(() => btn.textContent = 'Copier', 1500);
+  }
+
+  // Active nav link on scroll
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        const link = document.querySelector(`.nav-link[href="#${entry.target.id}"]`);
+        if (link) link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+
+  document.querySelectorAll('h2[id]').forEach(h => observer.observe(h));
+</script>
+
+</body>
+</html>
