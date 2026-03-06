@@ -11,7 +11,7 @@ export class OrangeMoneyStrategy implements IPaymentStrategy {
   private readonly baseUrl: string;
   private readonly merchantCode: string;
   private readonly merchantName: string;
-  private readonly callbackUrl: string;
+  private readonly appBaseUrl: string;
 
   private accessToken: string | null = null;
   private tokenExpiresAt = 0;
@@ -23,8 +23,7 @@ export class OrangeMoneyStrategy implements IPaymentStrategy {
     this.baseUrl = rawBaseUrl.startsWith('http') ? rawBaseUrl : `https://${rawBaseUrl}`;
     this.merchantCode = this.configService.get<string>('ORANGE_MONEY_MERCHANT_CODE', '');
     this.merchantName = this.configService.get<string>('ORANGE_MONEY_MERCHANT_NAME', 'OFood');
-    const appUrl = this.configService.get<string>('APP_URL', '');
-    this.callbackUrl = `${appUrl}/payments/orange-money/callback`;
+    this.appBaseUrl = this.configService.get<string>('APP_URL', '');
   }
 
   private async getAccessToken(): Promise<string> {
@@ -32,26 +31,27 @@ export class OrangeMoneyStrategy implements IPaymentStrategy {
       return this.accessToken;
     }
 
-    const response = await fetch(`${this.baseUrl}/oauth/v1/token`, {
+    const response = await fetch(`${this.baseUrl}/oauth/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
+        grant_type: 'client_credentials',
         client_id: this.clientId,
         client_secret: this.clientSecret,
-        grant_type: 'client_credentials',
       }),
     });
 
     if (!response.ok) {
       const errorBody = await response.text();
-      throw new Error(`Orange Money auth failed: ${response.status} - ${errorBody}`);
+      this.logger.error(`Orange Money auth failed: ${response.status} - ${errorBody}`);
+      throw new Error(`Orange Money auth failed: ${response.status}`);
     }
 
     const data = await response.json();
     this.accessToken = data.access_token as string;
-    // Expire 30s avant pour éviter les edge cases
-    this.tokenExpiresAt = Date.now() + (data.expires_in - 30) * 1000;
+    this.tokenExpiresAt = Date.now() + (data.expires_in - 60) * 1000;
 
+    this.logger.log('Token Orange Money obtenu');
     return this.accessToken!;
   }
 
@@ -60,102 +60,111 @@ export class OrangeMoneyStrategy implements IPaymentStrategy {
     phone: string,
     provider: PaymentMethod,
   ): Promise<PaymentResult> {
-    const token = await this.getAccessToken();
+    try {
+      const token = await this.getAccessToken();
 
-    const response = await fetch(`${this.baseUrl}/api/eWallet/v4/qrcode`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        'X-Callback-Url': this.callbackUrl,
-      },
-      body: JSON.stringify({
-        code: this.merchantCode,
-        name: this.merchantName,
-        amount: {
-          value: amount,
-          unit: 'XOF',
+      const callbackSuccessUrl = `${this.appBaseUrl}/payments/orange-money/callback`;
+      const callbackCancelUrl = `${this.appBaseUrl}/payments/orange-money/callback`;
+
+      const response = await fetch(`${this.baseUrl}/api/eWallet/v4/qrcode`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-      }),
-    });
+        body: JSON.stringify({
+          code: this.merchantCode,
+          name: this.merchantName,
+          amount: {
+            unit: 'XOF',
+            value: Math.round(amount),
+          },
+          callbackSuccessUrl,
+          callbackCancelUrl,
+          validity: 1800,
+        }),
+      });
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      this.logger.error(`Orange Money QR code generation failed: ${response.status} - ${errorBody}`);
+      if (!response.ok) {
+        const errorBody = await response.text();
+        this.logger.error(`Orange Money QR code failed: ${response.status} - ${errorBody}`);
+
+        if (response.status === 401) {
+          this.accessToken = null;
+          this.tokenExpiresAt = 0;
+        }
+
+        return {
+          success: false,
+          pending: false,
+          reference: '',
+          message: `Échec Orange Money: ${response.status}`,
+        };
+      }
+
+      const data = await response.json();
+
+      this.logger.log(`Orange Money QR code généré — qrId: ${data.qrId}, montant: ${amount} XOF`);
+
+      return {
+        success: true,
+        pending: true,
+        reference: data.qrId || '',
+        message: 'En attente du paiement Orange Money.',
+        deepLink: data.deepLinks?.OM || data.deepLink || '',
+        qrCode: data.qrCode || '',
+      };
+    } catch (error) {
+      this.logger.error('Erreur initiation paiement Orange Money', error);
       return {
         success: false,
         pending: false,
         reference: '',
-        message: `Échec Orange Money: ${response.status}`,
+        message: 'Erreur technique Orange Money',
       };
     }
-
-    const data = await response.json();
-    const qrData = Array.isArray(data) ? data[0] : data;
-
-    this.logger.log(`Orange Money QR code generated for ${amount} XOF`);
-
-    return {
-      success: true,
-      pending: true,
-      reference: qrData.transactionId || qrData.requestId || '',
-      message: 'QR code généré. En attente du paiement Orange Money.',
-      deepLink: qrData.deepLink || '',
-      qrCode: qrData.qrCode || '',
-    };
   }
 
   async verifyPayment(reference: string): Promise<PaymentResult> {
-    const token = await this.getAccessToken();
+    try {
+      const token = await this.getAccessToken();
 
-    const response = await fetch(
-      `${this.baseUrl}/api/eWallet/v1/transactions/${reference}/status`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
+      const response = await fetch(
+        `${this.baseUrl}/api/eWallet/v4/qrcode/${reference}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
         },
-      },
-    );
+      );
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      this.logger.error(`Orange Money verify failed: ${response.status} - ${errorBody}`);
-      return {
-        success: false,
-        pending: false,
-        reference,
-        message: `Vérification échouée: ${response.status}`,
-      };
+      if (!response.ok) {
+        const errorBody = await response.text();
+        this.logger.error(`Orange Money verify failed: ${response.status} - ${errorBody}`);
+        return {
+          success: false,
+          pending: false,
+          reference,
+          message: `Vérification échouée: ${response.status}`,
+        };
+      }
+
+      const data = await response.json();
+      const status = (data.status || '').toUpperCase();
+
+      if (status === 'SUCCESS' || status === 'ACCEPTED') {
+        return { success: true, pending: false, reference, message: 'Paiement Orange Money confirmé' };
+      }
+
+      if (status === 'PENDING' || status === 'INITIATED' || status === 'PRE_INITIATED') {
+        return { success: false, pending: true, reference, message: 'Paiement en cours de traitement' };
+      }
+
+      return { success: false, pending: false, reference, message: `Paiement échoué: ${status}` };
+    } catch (error) {
+      this.logger.error('Erreur vérification paiement Orange Money', error);
+      return { success: false, pending: false, reference, message: 'Erreur technique de vérification' };
     }
-
-    const data = await response.json();
-    const status = data.status?.toUpperCase();
-
-    if (status === 'SUCCESS' || status === 'ACCEPTED') {
-      return {
-        success: true,
-        pending: false,
-        reference,
-        message: 'Paiement Orange Money confirmé',
-      };
-    }
-
-    if (status === 'PENDING' || status === 'INITIATED' || status === 'PRE_INITIATED') {
-      return {
-        success: false,
-        pending: true,
-        reference,
-        message: 'Paiement en cours de traitement',
-      };
-    }
-
-    return {
-      success: false,
-      pending: false,
-      reference,
-      message: `Paiement échoué: ${status}`,
-    };
   }
 }

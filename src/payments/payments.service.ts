@@ -73,7 +73,7 @@ export class PaymentsService {
     const strategy = this.getStrategy(dto.paymentMethod);
     const result = await strategy.initiatePayment(
       order.totalAmount,
-      dto.phoneNumber,
+      dto.phoneNumber || '',
       dto.paymentMethod,
     );
 
