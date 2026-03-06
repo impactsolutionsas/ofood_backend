@@ -529,7 +529,7 @@
   <h2 id="base-url">Base URL & Format</h2>
 
   <div class="alert alert-info">
-    <strong>Base URL :</strong> <code>http://localhost:3000</code> (dev) — adaptez pour la production.<br>
+    <strong>Base URL :</strong> <code>https://ofood-api.onrender.com</code> (dev) — adaptez pour la production.<br>
     <strong>Swagger UI :</strong> <code>/api/docs</code> — interface interactive pour tester tous les endpoints.
   </div>
 
@@ -1112,7 +1112,7 @@
   <p>L'API utilise <strong>Socket.io</strong> pour les notifications temps réel des commandes.</p>
 
   <div class="alert alert-info">
-    <strong>URL :</strong> <code>ws://localhost:3000</code> (même port que le serveur HTTP)
+    <strong>URL :</strong> <code>ws://https://ofood-api.onrender.com</code> (même port que le serveur HTTP)
   </div>
 
   <h3>Rooms</h3>
@@ -1271,7 +1271,7 @@
   <pre><code><span class="hl-kw">import</span> axios <span class="hl-kw">from</span> <span class="hl-str">'axios'</span>;
 
 <span class="hl-kw">const</span> api = axios.create({
-  baseURL: <span class="hl-str">'http://localhost:3000'</span>,
+  baseURL: <span class="hl-str">'https://ofood-api.onrender.com'</span>,
   headers: { <span class="hl-str">'Content-Type'</span>: <span class="hl-str">'application/json'</span> },
 });
 
@@ -1288,7 +1288,7 @@ api.interceptors.response.use(
     <span class="hl-kw">if</span> (error.response?.status === <span class="hl-num">401</span> &amp;&amp; !original._retry) {
       original._retry = <span class="hl-num">true</span>;
       <span class="hl-kw">try</span> {
-        <span class="hl-kw">const</span> { data } = <span class="hl-kw">await</span> axios.post(<span class="hl-str">'http://localhost:3000/auth/refresh'</span>, {
+        <span class="hl-kw">const</span> { data } = <span class="hl-kw">await</span> axios.post(<span class="hl-str">'https://ofood-api.onrender.com/auth/refresh'</span>, {
           refreshToken: localStorage.getItem(<span class="hl-str">'refreshToken'</span>),
         });
         localStorage.setItem(<span class="hl-str">'accessToken'</span>, data.data.accessToken);
