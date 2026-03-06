@@ -1,9 +1,10 @@
-import { Controller, Post, Get, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Param, Body, UseGuards, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { PaymentsService } from './payments.service';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 import { VerifyPaymentDto } from './dto/verify-payment.dto';
+import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -41,6 +42,15 @@ export class PaymentsController {
     @Body() dto: VerifyPaymentDto,
   ) {
     return this.paymentsService.verifyPayment(userId, id, dto);
+  }
+
+  @Public()
+  @Post('orange-money/callback')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Callback Orange Money (webhook public)' })
+  @ApiResponse({ status: 200, description: 'Notification reçue' })
+  async orangeMoneyCallback(@Body() payload: any) {
+    return this.paymentsService.handleOrangeMoneyCallback(payload);
   }
 
   @Get('order/:orderId')

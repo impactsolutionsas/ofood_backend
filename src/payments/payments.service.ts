@@ -1,30 +1,45 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
-import { OrderStatus, Role, TransactionType, TransactionStatus } from '@prisma/client';
+import { OrderStatus, PaymentMethod, Role, TransactionType, TransactionStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SmsService } from '../notifications/sms.service';
 import { OrdersGateway } from '../orders/orders.gateway';
 import { IPaymentStrategy } from './strategies/payment-strategy.interface';
 import { MockPaymentStrategy } from './strategies/mock-payment.strategy';
+import { OrangeMoneyStrategy } from './strategies/orange-money.strategy';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 import { VerifyPaymentDto } from './dto/verify-payment.dto';
 
 @Injectable()
 export class PaymentsService {
-  private readonly strategy: IPaymentStrategy;
+  private readonly logger = new Logger(PaymentsService.name);
+  private readonly strategies: Map<PaymentMethod, IPaymentStrategy>;
 
   constructor(
     private prisma: PrismaService,
     private smsService: SmsService,
     private ordersGateway: OrdersGateway,
     mockStrategy: MockPaymentStrategy,
+    orangeMoneyStrategy: OrangeMoneyStrategy,
   ) {
-    // Pour l'instant, toujours le mock. Plus tard on pourra ajouter Wave/OM strategies
-    this.strategy = mockStrategy;
+    this.strategies = new Map<PaymentMethod, IPaymentStrategy>([
+      [PaymentMethod.ORANGE_MONEY, orangeMoneyStrategy],
+      [PaymentMethod.WAVE, mockStrategy],
+      [PaymentMethod.FREE_MONEY, mockStrategy],
+    ]);
+  }
+
+  private getStrategy(method: PaymentMethod): IPaymentStrategy {
+    const strategy = this.strategies.get(method);
+    if (!strategy) {
+      throw new BadRequestException(`Méthode de paiement non supportée: ${method}`);
+    }
+    return strategy;
   }
 
   async initiatePayment(userId: string, dto: InitiatePaymentDto) {
@@ -55,14 +70,14 @@ export class PaymentsService {
     }
 
     // Appeler le strategy de paiement
-    const result = await this.strategy.initiatePayment(
+    const strategy = this.getStrategy(dto.paymentMethod);
+    const result = await strategy.initiatePayment(
       order.totalAmount,
       dto.phoneNumber,
       dto.paymentMethod,
     );
 
     if (!result.success) {
-      // Créer transaction échouée
       const failedTx = await this.prisma.transaction.create({
         data: {
           orderId: order.id,
@@ -78,10 +93,9 @@ export class PaymentsService {
       return failedTx;
     }
 
-    // Paiement réussi → transaction atomique
-    const transaction = await this.prisma.$transaction(async (tx) => {
-      // Créer la transaction
-      const paymentTx = await tx.transaction.create({
+    // Paiement asynchrone (Orange Money) → PENDING
+    if (result.pending) {
+      const pendingTx = await this.prisma.transaction.create({
         data: {
           orderId: order.id,
           type: TransactionType.CREDIT,
@@ -89,23 +103,62 @@ export class PaymentsService {
           mobileProvider: dto.paymentMethod,
           phoneNumber: dto.phoneNumber,
           reference: result.reference,
-          status: TransactionStatus.SUCCESS,
+          status: TransactionStatus.PENDING,
           note: result.message,
         },
       });
 
-      // Mettre à jour la commande
+      await this.prisma.order.update({
+        where: { id: order.id },
+        data: {
+          paymentMethod: dto.paymentMethod,
+          paymentRef: result.reference,
+        },
+      });
+
+      return {
+        transaction: pendingTx,
+        deepLink: result.deepLink,
+        qrCode: result.qrCode,
+        message: result.message,
+      };
+    }
+
+    // Paiement synchrone (Mock/Wave/FreeMoney) → SUCCESS immédiat
+    const transaction = await this.confirmPayment(order, dto, result.reference, result.message);
+    return transaction;
+  }
+
+  private async confirmPayment(
+    order: any,
+    dto: { paymentMethod: PaymentMethod; phoneNumber?: string },
+    reference: string,
+    note: string,
+  ) {
+    const transaction = await this.prisma.$transaction(async (tx) => {
+      const paymentTx = await tx.transaction.create({
+        data: {
+          orderId: order.id,
+          type: TransactionType.CREDIT,
+          amount: order.totalAmount,
+          mobileProvider: dto.paymentMethod,
+          phoneNumber: dto.phoneNumber,
+          reference,
+          status: TransactionStatus.SUCCESS,
+          note,
+        },
+      });
+
       await tx.order.update({
         where: { id: order.id },
         data: {
           status: OrderStatus.PAID,
           paymentStatus: 'PAID',
           paymentMethod: dto.paymentMethod,
-          paymentRef: result.reference,
+          paymentRef: reference,
         },
       });
 
-      // Créditer le wallet de chaque restaurant
       const restaurantAmounts = new Map<string, number>();
       for (const item of order.items) {
         const current = restaurantAmounts.get(item.restaurantId) || 0;
@@ -118,7 +171,6 @@ export class PaymentsService {
           data: { walletBalance: { increment: amount } },
         });
 
-        // Transaction de crédit pour le restaurant
         await tx.transaction.create({
           data: {
             restaurantId,
@@ -134,31 +186,121 @@ export class PaymentsService {
       return paymentTx;
     });
 
-    // Notifications WebSocket + SMS
-    const restaurantIds = [...new Set(order.items.map((i) => i.restaurantId))];
+    this.sendPaymentNotifications(order);
+    return transaction;
+  }
+
+  async handleOrangeMoneyCallback(payload: any) {
+    this.logger.log(`Orange Money callback reçu: ${JSON.stringify(payload)}`);
+
+    const reference = payload.transactionId || payload.requestId;
+    if (!reference) {
+      this.logger.warn('Callback Orange Money sans référence de transaction');
+      return { received: true };
+    }
+
+    const existingTx = await this.prisma.transaction.findFirst({
+      where: { reference, status: TransactionStatus.PENDING },
+      include: {
+        order: {
+          include: {
+            items: {
+              include: {
+                restaurant: { select: { id: true, name: true, ownerId: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!existingTx || !existingTx.order) {
+      this.logger.warn(`Transaction PENDING introuvable pour ref: ${reference}`);
+      return { received: true };
+    }
+
+    const status = (payload.status || '').toUpperCase();
+
+    if (status === 'SUCCESS' || status === 'ACCEPTED') {
+      await this.prisma.transaction.update({
+        where: { id: existingTx.id },
+        data: { status: TransactionStatus.SUCCESS, note: 'Paiement Orange Money confirmé' },
+      });
+
+      await this.confirmPaymentFromCallback(existingTx.order);
+      this.logger.log(`Paiement Orange Money confirmé pour commande ${existingTx.orderId}`);
+    } else if (status === 'FAILED' || status === 'CANCELLED' || status === 'REJECTED') {
+      await this.prisma.transaction.update({
+        where: { id: existingTx.id },
+        data: { status: TransactionStatus.FAILED, note: `Paiement échoué: ${status}` },
+      });
+      this.logger.warn(`Paiement Orange Money échoué (${status}) pour commande ${existingTx.orderId}`);
+    }
+
+    return { received: true };
+  }
+
+  private async confirmPaymentFromCallback(order: any) {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.order.update({
+        where: { id: order.id },
+        data: {
+          status: OrderStatus.PAID,
+          paymentStatus: 'PAID',
+        },
+      });
+
+      const restaurantAmounts = new Map<string, number>();
+      for (const item of order.items) {
+        const current = restaurantAmounts.get(item.restaurantId) || 0;
+        restaurantAmounts.set(item.restaurantId, current + item.subtotal);
+      }
+
+      for (const [restaurantId, amount] of restaurantAmounts) {
+        await tx.restaurant.update({
+          where: { id: restaurantId },
+          data: { walletBalance: { increment: amount } },
+        });
+
+        await tx.transaction.create({
+          data: {
+            restaurantId,
+            orderId: order.id,
+            type: TransactionType.CREDIT,
+            amount,
+            status: TransactionStatus.SUCCESS,
+            note: `Paiement commande #${order.id.slice(0, 8)}`,
+          },
+        });
+      }
+    });
+
+    this.sendPaymentNotifications(order);
+  }
+
+  private sendPaymentNotifications(order: any) {
+    const restaurantIds = [...new Set(order.items.map((i: any) => i.restaurantId))] as string[];
     for (const restaurantId of restaurantIds) {
       this.ordersGateway.notifyStatusChange(
         restaurantId,
-        userId,
+        order.userId,
         order.id,
         OrderStatus.PAID,
       );
 
       const restaurant = order.items.find((i) => i.restaurantId === restaurantId)?.restaurant;
       if (restaurant) {
-        const owner = await this.prisma.user.findUnique({
-          where: { id: restaurant.ownerId },
-          select: { phone: true },
-        });
-        if (owner) {
-          this.smsService
-            .sendSms(owner.phone, `Paiement reçu pour une commande sur ${restaurant.name} !`)
-            .catch(() => {});
-        }
+        this.prisma.user
+          .findUnique({ where: { id: restaurant.ownerId }, select: { phone: true } })
+          .then((owner) => {
+            if (owner) {
+              this.smsService
+                .sendSms(owner.phone, `Paiement reçu pour une commande sur ${restaurant.name} !`)
+                .catch(() => {});
+            }
+          });
       }
     }
-
-    return transaction;
   }
 
   async verifyPayment(userId: string, transactionId: string, dto: VerifyPaymentDto) {
@@ -175,7 +317,11 @@ export class PaymentsService {
       throw new ForbiddenException("Cette transaction ne vous concerne pas");
     }
 
-    const result = await this.strategy.verifyPayment(dto.reference);
+    if (!transaction.mobileProvider) {
+      throw new BadRequestException('Méthode de paiement non définie pour cette transaction');
+    }
+    const strategy = this.getStrategy(transaction.mobileProvider);
+    const result = await strategy.verifyPayment(dto.reference);
 
     return {
       transactionId: transaction.id,

@@ -20,6 +20,7 @@ export class MockPaymentStrategy implements IPaymentStrategy {
 
     return {
       success: true,
+      pending: false,
       reference,
       message: `Paiement ${provider} simulé avec succès`,
     };
@@ -30,6 +31,7 @@ export class MockPaymentStrategy implements IPaymentStrategy {
 
     return {
       success: true,
+      pending: false,
       reference,
       message: 'Paiement vérifié (mock)',
     };

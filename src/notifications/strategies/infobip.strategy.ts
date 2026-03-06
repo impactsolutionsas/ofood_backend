@@ -11,7 +11,8 @@ export class InfobipStrategy implements ISmsStrategy {
 
   constructor(private configService: ConfigService) {
     this.apiKey = this.configService.get<string>('INFOBIP_API_KEY', '');
-    this.baseUrl = this.configService.get<string>('INFOBIP_BASE_URL', '');
+    const rawBaseUrl = this.configService.get<string>('INFOBIP_BASE_URL', '');
+    this.baseUrl = rawBaseUrl.startsWith('http') ? rawBaseUrl : `https://${rawBaseUrl}`;
     this.sender = this.configService.get<string>('INFOBIP_SENDER', 'OFood');
   }
 
