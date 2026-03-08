@@ -63,10 +63,18 @@ export class PaymentsService {
       throw new ForbiddenException("Cette commande ne vous appartient pas");
     }
 
-    if (order.status !== OrderStatus.PENDING) {
+    if (order.status !== OrderStatus.PENDING && order.status !== OrderStatus.AWAITING_PAYMENT) {
       throw new BadRequestException(
         `Impossible de payer une commande avec le statut : ${order.status}`,
       );
+    }
+
+    // Si retry depuis AWAITING_PAYMENT, annuler l'ancienne transaction PENDING
+    if (order.status === OrderStatus.AWAITING_PAYMENT) {
+      await this.prisma.transaction.updateMany({
+        where: { orderId: order.id, status: TransactionStatus.PENDING },
+        data: { status: TransactionStatus.FAILED, note: 'Annulé par nouveau paiement' },
+      });
     }
 
     // Appeler le strategy de paiement
@@ -75,7 +83,10 @@ export class PaymentsService {
       order.totalAmount,
       dto.phoneNumber || '',
       dto.paymentMethod,
+      order.id,
     );
+
+    console.log('Résultat du paiement:', result);
 
     if (!result.success) {
       const failedTx = await this.prisma.transaction.create({
@@ -111,6 +122,7 @@ export class PaymentsService {
       await this.prisma.order.update({
         where: { id: order.id },
         data: {
+          status: OrderStatus.AWAITING_PAYMENT,
           paymentMethod: dto.paymentMethod,
           paymentRef: result.reference,
         },
@@ -118,7 +130,7 @@ export class PaymentsService {
 
       return {
         transaction: pendingTx,
-        deepLink: result.deepLink,
+        deepLinks: result.deepLinks,
         qrCode: result.qrCode,
         message: result.message,
       };
@@ -193,7 +205,7 @@ export class PaymentsService {
   async handleOrangeMoneyCallback(payload: any) {
     this.logger.log(`Orange Money callback reçu: ${JSON.stringify(payload)}`);
 
-    const reference = payload.transactionId || payload.requestId;
+    const reference = payload.qrId || payload.transactionId || payload.requestId;
     if (!reference) {
       this.logger.warn('Callback Orange Money sans référence de transaction');
       return { received: true };
@@ -234,6 +246,15 @@ export class PaymentsService {
         where: { id: existingTx.id },
         data: { status: TransactionStatus.FAILED, note: `Paiement échoué: ${status}` },
       });
+
+      // Remettre la commande en PENDING pour permettre un retry
+      if (existingTx.orderId) {
+        await this.prisma.order.update({
+          where: { id: existingTx.orderId },
+          data: { status: OrderStatus.PENDING },
+        });
+      }
+
       this.logger.warn(`Paiement Orange Money échoué (${status}) pour commande ${existingTx.orderId}`);
     }
 
@@ -306,7 +327,17 @@ export class PaymentsService {
   async verifyPayment(userId: string, transactionId: string, dto: VerifyPaymentDto) {
     const transaction = await this.prisma.transaction.findUnique({
       where: { id: transactionId },
-      include: { order: { select: { userId: true } } },
+      include: {
+        order: {
+          include: {
+            items: {
+              include: {
+                restaurant: { select: { id: true, name: true, ownerId: true } },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!transaction) {
@@ -323,9 +354,18 @@ export class PaymentsService {
     const strategy = this.getStrategy(transaction.mobileProvider);
     const result = await strategy.verifyPayment(dto.reference);
 
+    // Auto-confirmer si la vérification retourne success et la transaction est encore PENDING
+    if (result.success && transaction.status === TransactionStatus.PENDING && transaction.order) {
+      await this.prisma.transaction.update({
+        where: { id: transaction.id },
+        data: { status: TransactionStatus.SUCCESS, note: 'Confirmé par vérification' },
+      });
+      await this.confirmPaymentFromCallback(transaction.order);
+    }
+
     return {
       transactionId: transaction.id,
-      status: transaction.status,
+      status: result.success ? TransactionStatus.SUCCESS : transaction.status,
       verified: result.success,
       message: result.message,
     };

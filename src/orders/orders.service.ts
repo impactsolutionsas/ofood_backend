@@ -7,6 +7,7 @@ import {
 import {
   OrderStatus,
   PaymentMethod,
+  DeliveryType,
   Role,
   TransactionType,
   TransactionStatus,
@@ -74,11 +75,13 @@ export class OrdersService {
 
     // Create order in transaction
     const isCod = dto.paymentMethod === PaymentMethod.CASH_ON_DELIVERY;
+    const deliveryType = dto.deliveryType || DeliveryType.PICKUP;
     const order = await this.prisma.$transaction(async (tx) => {
       return tx.order.create({
         data: {
           userId,
           totalAmount,
+          deliveryType,
           ...(isCod && {
             paymentMethod: PaymentMethod.CASH_ON_DELIVERY,
             paymentStatus: 'COD',

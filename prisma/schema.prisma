@@ -93,6 +93,11 @@ enum PaymentMethod {
   CASH_ON_DELIVERY
 }
 
+enum DeliveryType {
+  PICKUP
+  DELIVERY
+}
+
 enum TransactionType {
   CREDIT
   DEBIT
@@ -218,6 +223,7 @@ model Order {
   id                String              @id @default(uuid())
   userId            String
   status            OrderStatus         @default(PENDING)
+  deliveryType      DeliveryType        @default(PICKUP)
   totalAmount       Float
   paymentStatus     String              @default("UNPAID")
   paymentMethod     PaymentMethod?

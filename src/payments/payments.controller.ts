@@ -9,12 +9,16 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ParseUuidPipe } from '../common/pipes/parse-uuid.pipe';
+import { OrangeMoneyStrategy } from './strategies/orange-money.strategy';
 
 @ApiTags('Payments')
 @ApiBearerAuth()
 @Controller('payments')
 export class PaymentsController {
-  constructor(private paymentsService: PaymentsService) {}
+  constructor(
+    private paymentsService: PaymentsService,
+    private orangeMoneyStrategy: OrangeMoneyStrategy,
+  ) {}
 
   @UseGuards(RolesGuard)
   @Roles(Role.CLIENT)
@@ -51,6 +55,15 @@ export class PaymentsController {
   @ApiResponse({ status: 200, description: 'Notification reçue' })
   async orangeMoneyCallback(@Body() payload: any) {
     return this.paymentsService.handleOrangeMoneyCallback(payload);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @Post('orange-money/register-callback')
+  @ApiOperation({ summary: 'Enregistrer le callback marchand Orange Money (ADMIN)' })
+  @ApiResponse({ status: 201, description: 'Callback enregistré' })
+  async registerOrangeMoneyCallback() {
+    return this.orangeMoneyStrategy.registerCallback();
   }
 
   @Get('order/:orderId')

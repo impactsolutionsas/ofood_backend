@@ -209,7 +209,7 @@ export class RestaurantsService {
       FROM orders o
       JOIN order_items oi ON oi."orderId" = o.id
       WHERE oi."restaurantId" = ${restaurant.id}
-        AND o.status = 'DELIVERED'
+        AND o.status = 'DELIVERED'::"OrderStatus"
         AND o."createdAt" >= ${thirtyDaysAgo}
       GROUP BY day
       ORDER BY day ASC
@@ -228,7 +228,7 @@ export class RestaurantsService {
       JOIN dishes d ON d.id = oi."dishId"
       JOIN orders o ON o.id = oi."orderId"
       WHERE oi."restaurantId" = ${restaurant.id}
-        AND o.status = 'DELIVERED'
+        AND o.status = 'DELIVERED'::"OrderStatus"
       GROUP BY oi."dishId", d.name
       ORDER BY quantity DESC
       LIMIT 10
@@ -239,13 +239,13 @@ export class RestaurantsService {
       Array<{ method: string; orders: bigint; revenue: number }>
     >`
       SELECT
-        COALESCE(o."paymentMethod", 'UNKNOWN') AS method,
+        COALESCE(o."paymentMethod"::text, 'UNKNOWN') AS method,
         COUNT(DISTINCT o.id) AS orders,
         COALESCE(SUM(oi.subtotal), 0) AS revenue
       FROM orders o
       JOIN order_items oi ON oi."orderId" = o.id
       WHERE oi."restaurantId" = ${restaurant.id}
-        AND o.status = 'DELIVERED'
+        AND o.status = 'DELIVERED'::"OrderStatus"
       GROUP BY o."paymentMethod"
       ORDER BY revenue DESC
     `;
@@ -255,12 +255,12 @@ export class RestaurantsService {
       Array<{ hour: number; orders: bigint }>
     >`
       SELECT
-        EXTRACT(HOUR FROM o."createdAt") AS hour,
+        EXTRACT(HOUR FROM o."createdAt")::int AS hour,
         COUNT(DISTINCT o.id) AS orders
       FROM orders o
       JOIN order_items oi ON oi."orderId" = o.id
       WHERE oi."restaurantId" = ${restaurant.id}
-        AND o.status = 'DELIVERED'
+        AND o.status = 'DELIVERED'::"OrderStatus"
       GROUP BY hour
       ORDER BY hour ASC
     `;

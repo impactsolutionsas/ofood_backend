@@ -11,6 +11,7 @@ export class MockPaymentStrategy implements IPaymentStrategy {
     amount: number,
     phone: string,
     provider: PaymentMethod,
+    orderId?: string,
   ): Promise<PaymentResult> {
     const reference = `MOCK-${randomUUID().slice(0, 8).toUpperCase()}`;
 

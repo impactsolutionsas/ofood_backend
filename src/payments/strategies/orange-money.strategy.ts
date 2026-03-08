@@ -12,6 +12,7 @@ export class OrangeMoneyStrategy implements IPaymentStrategy {
   private readonly merchantCode: string;
   private readonly merchantName: string;
   private readonly appBaseUrl: string;
+  private readonly frontendBaseUrl: string;
 
   private accessToken: string | null = null;
   private tokenExpiresAt = 0;
@@ -24,6 +25,7 @@ export class OrangeMoneyStrategy implements IPaymentStrategy {
     this.merchantCode = this.configService.get<string>('ORANGE_MONEY_MERCHANT_CODE', '');
     this.merchantName = this.configService.get<string>('ORANGE_MONEY_MERCHANT_NAME', 'OFood');
     this.appBaseUrl = this.configService.get<string>('APP_URL', '');
+    this.frontendBaseUrl = this.configService.get<string>('FRONTEND_URL', '') || this.appBaseUrl;
   }
 
   private async getAccessToken(): Promise<string> {
@@ -59,12 +61,13 @@ export class OrangeMoneyStrategy implements IPaymentStrategy {
     amount: number,
     phone: string,
     provider: PaymentMethod,
+    orderId?: string,
   ): Promise<PaymentResult> {
     try {
       const token = await this.getAccessToken();
 
-      const callbackSuccessUrl = `${this.appBaseUrl}/payments/orange-money/callback`;
-      const callbackCancelUrl = `${this.appBaseUrl}/payments/orange-money/callback`;
+      const callbackSuccessUrl = `${this.frontendBaseUrl}/payment/success?orderId=${orderId}`;
+      const callbackCancelUrl = `${this.frontendBaseUrl}/payment/cancelled?orderId=${orderId}`;
 
       const response = await fetch(`${this.baseUrl}/api/eWallet/v4/qrcode`, {
         method: 'POST',
@@ -81,6 +84,8 @@ export class OrangeMoneyStrategy implements IPaymentStrategy {
           },
           callbackSuccessUrl,
           callbackCancelUrl,
+          reference: orderId || 'ofood',
+          metadata: { orderId, source: 'ofood' },
           validity: 1800,
         }),
       });
@@ -111,7 +116,10 @@ export class OrangeMoneyStrategy implements IPaymentStrategy {
         pending: true,
         reference: data.qrId || '',
         message: 'En attente du paiement Orange Money.',
-        deepLink: data.deepLinks?.OM || data.deepLink || '',
+        deepLinks: {
+          OM: data.deepLinks?.OM || data.deepLink || '',
+          MAXIT: data.deepLinks?.MAXIT || '',
+        },
         qrCode: data.qrCode || '',
       };
     } catch (error) {
@@ -123,6 +131,24 @@ export class OrangeMoneyStrategy implements IPaymentStrategy {
         message: 'Erreur technique Orange Money',
       };
     }
+  }
+
+  async registerCallback(): Promise<any> {
+    const token = await this.getAccessToken();
+    const response = await fetch(`${this.baseUrl}/api/notification/v1/merchantcallback`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        apiKey: this.clientId,
+        code: this.merchantCode,
+        name: this.merchantName,
+        callbackUrl: `${this.appBaseUrl}/payments/orange-money/callback`,
+      }),
+    });
+    return response.json();
   }
 
   async verifyPayment(reference: string): Promise<PaymentResult> {

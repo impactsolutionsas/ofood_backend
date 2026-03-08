@@ -5,7 +5,10 @@ export interface PaymentResult {
   pending: boolean;
   reference: string;
   message: string;
-  deepLink?: string;
+  deepLinks?: {
+    OM?: string;
+    MAXIT?: string;
+  };
   qrCode?: string;
 }
 
@@ -14,6 +17,7 @@ export interface IPaymentStrategy {
     amount: number,
     phone: string,
     provider: PaymentMethod,
+    orderId?: string,
   ): Promise<PaymentResult>;
 
   verifyPayment(reference: string): Promise<PaymentResult>;

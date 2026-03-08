@@ -19,7 +19,7 @@ import { RatingsModule } from './ratings/ratings.module';
 import { AdminModule } from './admin/admin.module';
 import { WalletModule } from './wallet/wallet.module';
 import { PushModule } from './push/push.module';
-import { DeliveryModule } from './delivery/delivery.module';
+// import { DeliveryModule } from './delivery/delivery.module'; // Désactivé — livraison pas encore disponible
 import { StorageModule } from './storage/storage.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 
@@ -43,7 +43,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     AdminModule,
     WalletModule,
     PushModule,
-    DeliveryModule,
+    // DeliveryModule, // Désactivé
   ],
   controllers: [AppController],
   providers: [

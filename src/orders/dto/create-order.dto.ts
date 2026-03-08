@@ -1,7 +1,7 @@
 import { IsArray, ArrayMinSize, ValidateNested, IsUUID, IsInt, IsPositive, IsOptional, IsEnum } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { PaymentMethod } from '@prisma/client';
+import { PaymentMethod, DeliveryType } from '@prisma/client';
 
 export class OrderItemDto {
   @ApiProperty({ example: 'uuid-dish-1', description: 'ID du plat' })
@@ -26,4 +26,9 @@ export class CreateOrderDto {
   @IsOptional()
   @IsEnum(PaymentMethod)
   paymentMethod?: PaymentMethod;
+
+  @ApiPropertyOptional({ enum: DeliveryType, example: 'PICKUP', description: 'Retrait sur place ou livraison' })
+  @IsOptional()
+  @IsEnum(DeliveryType)
+  deliveryType?: DeliveryType;
 }
