@@ -20,6 +20,7 @@ import { AdminModule } from './admin/admin.module';
 import { WalletModule } from './wallet/wallet.module';
 import { PushModule } from './push/push.module';
 import { DeliveryModule } from './delivery/delivery.module';
+import { StorageModule } from './storage/storage.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 
 @Module({
@@ -29,6 +30,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     ScheduleModule.forRoot(),
     PrismaModule,
     RedisModule,
+    StorageModule,
     AuthModule,
     NotificationsModule,
     UsersModule,

@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { RestaurantsService } from './restaurants.service';
 import { CreateRestaurantDto } from './dto/create-restaurant.dto';
@@ -41,6 +42,19 @@ export class RestaurantsController {
   @ApiBearerAuth()
   @UseGuards(RolesGuard)
   @Roles(Role.RESTAURANT_OWNER)
+  @Get(':id/analytics')
+  @ApiOperation({ summary: 'Analyses de ventes détaillées (OWNER)' })
+  @ApiResponse({ status: 200, description: 'Analytics retournées' })
+  async getAnalytics(
+    @CurrentUser('sub') ownerId: string,
+    @Param('id', ParseUuidPipe) id: string,
+  ) {
+    return this.restaurantsService.getAnalytics(ownerId, id);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(RolesGuard)
+  @Roles(Role.RESTAURANT_OWNER)
   @Get(':id/wallet')
   @ApiOperation({ summary: 'Solde et historique transactions' })
   @ApiResponse({ status: 200, description: 'Wallet retourné' })
@@ -65,20 +79,25 @@ export class RestaurantsController {
   @UseGuards(RolesGuard)
   @Roles(Role.RESTAURANT_OWNER)
   @Post()
+  @UseInterceptors(FileInterceptor('logo'))
+  @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Créer son restaurant (OWNER uniquement)' })
   @ApiResponse({ status: 201, description: 'Restaurant créé' })
   @ApiResponse({ status: 409, description: 'Vous avez déjà un restaurant' })
   async create(
     @CurrentUser('sub') ownerId: string,
     @Body() dto: CreateRestaurantDto,
+    @UploadedFile() logo?: Express.Multer.File,
   ) {
-    return this.restaurantsService.create(ownerId, dto);
+    return this.restaurantsService.create(ownerId, dto, logo);
   }
 
   @ApiBearerAuth()
   @UseGuards(RolesGuard)
   @Roles(Role.RESTAURANT_OWNER)
   @Patch(':id')
+  @UseInterceptors(FileInterceptor('logo'))
+  @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Modifier son restaurant' })
   @ApiResponse({ status: 200, description: 'Restaurant mis à jour' })
   @ApiResponse({ status: 403, description: 'Pas le propriétaire' })
@@ -86,7 +105,8 @@ export class RestaurantsController {
     @CurrentUser('sub') ownerId: string,
     @Param('id', ParseUuidPipe) id: string,
     @Body() dto: UpdateRestaurantDto,
+    @UploadedFile() logo?: Express.Multer.File,
   ) {
-    return this.restaurantsService.update(ownerId, id, dto);
+    return this.restaurantsService.update(ownerId, id, dto, logo);
   }
 }

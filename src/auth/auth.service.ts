@@ -256,7 +256,7 @@ export class AuthService {
       },
       {
         secret: this.configService.get('JWT_SECRET', 'secret'),
-        expiresIn: (this.configService.get('JWT_EXPIRES_IN', '15m') ?? '15m') as ms.StringValue,
+        expiresIn: (this.configService.get('JWT_EXPIRES_IN', '30m') ?? '30m') as ms.StringValue,
       },
     );
 

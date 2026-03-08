@@ -10,6 +10,7 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { DishCategory } from '@prisma/client';
+import { Transform } from 'class-transformer';
 
 export class CreateDishDto {
   @ApiProperty({ example: 'Thiéboudienne' })
@@ -23,11 +24,12 @@ export class CreateDishDto {
   description?: string;
 
   @ApiProperty({ example: 2500, description: 'Prix en FCFA' })
+  @Transform(({ value }) => Number(value))
   @IsNumber()
   @IsPositive()
   price: number;
 
-  @ApiPropertyOptional({ example: 'https://res.cloudinary.com/ofood/thieb.jpg' })
+  @ApiPropertyOptional({ example: 'https://example.com/thieb.jpg' })
   @IsOptional()
   @IsString()
   @IsUrl()
@@ -39,6 +41,7 @@ export class CreateDishDto {
 
   @ApiPropertyOptional({ example: true, default: true })
   @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   isAvailable?: boolean;
 }

@@ -2,13 +2,13 @@ import {
   IsString,
   IsNumber,
   IsOptional,
-  IsUrl,
   IsLatitude,
   IsLongitude,
   IsPositive,
   IsBoolean,
   MinLength,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateRestaurantDto {
@@ -26,12 +26,14 @@ export class UpdateRestaurantDto {
 
   @ApiPropertyOptional({ example: 14.6937 })
   @IsOptional()
+  @Transform(({ value }) => value !== undefined ? parseFloat(value) : undefined)
   @IsNumber()
   @IsLatitude()
   lat?: number;
 
   @ApiPropertyOptional({ example: -17.4441 })
   @IsOptional()
+  @Transform(({ value }) => value !== undefined ? parseFloat(value) : undefined)
   @IsNumber()
   @IsLongitude()
   lng?: number;
@@ -42,14 +44,14 @@ export class UpdateRestaurantDto {
   @MinLength(1)
   description?: string;
 
-  @ApiPropertyOptional({ example: 'https://res.cloudinary.com/ofood/logo.jpg' })
+  @ApiPropertyOptional({ example: 'https://...' })
   @IsOptional()
   @IsString()
-  @IsUrl()
   logoUrl?: string;
 
   @ApiPropertyOptional({ example: 25 })
   @IsOptional()
+  @Transform(({ value }) => value !== undefined ? parseInt(value, 10) : undefined)
   @IsNumber()
   @IsPositive()
   avgPrepTime?: number;
@@ -61,6 +63,7 @@ export class UpdateRestaurantDto {
 
   @ApiPropertyOptional({ example: true, description: 'Ouvrir/fermer le restaurant' })
   @IsOptional()
+  @Transform(({ value }) => value === 'true' ? true : value === 'false' ? false : value)
   @IsBoolean()
   isOpen?: boolean;
 }

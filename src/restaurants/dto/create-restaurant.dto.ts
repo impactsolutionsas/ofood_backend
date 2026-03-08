@@ -2,12 +2,12 @@ import {
   IsString,
   IsNumber,
   IsOptional,
-  IsUrl,
   IsLatitude,
   IsLongitude,
   IsPositive,
   MinLength,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateRestaurantDto {
@@ -22,11 +22,13 @@ export class CreateRestaurantDto {
   address: string;
 
   @ApiProperty({ example: 14.6937 })
+  @Transform(({ value }) => parseFloat(value))
   @IsNumber()
   @IsLatitude()
   lat: number;
 
   @ApiProperty({ example: -17.4441 })
+  @Transform(({ value }) => parseFloat(value))
   @IsNumber()
   @IsLongitude()
   lng: number;
@@ -36,13 +38,14 @@ export class CreateRestaurantDto {
   @MinLength(1)
   description: string;
 
-  @ApiProperty({ example: 'https://res.cloudinary.com/ofood/logo.jpg' })
+  @ApiPropertyOptional({ example: 'https://...', description: 'URL du logo (auto si fichier uploadé)' })
+  @IsOptional()
   @IsString()
-  @IsUrl()
-  logoUrl: string;
+  logoUrl?: string;
 
   @ApiPropertyOptional({ example: 25, description: 'Temps de préparation moyen (minutes)' })
   @IsOptional()
+  @Transform(({ value }) => value ? parseInt(value, 10) : undefined)
   @IsNumber()
   @IsPositive()
   avgPrepTime?: number;

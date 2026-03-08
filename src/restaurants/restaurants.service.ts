@@ -6,13 +6,17 @@ import {
 } from '@nestjs/common';
 import { OrderStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { CreateRestaurantDto } from './dto/create-restaurant.dto';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 import { QueryRestaurantsDto } from './dto/query-restaurants.dto';
 
 @Injectable()
 export class RestaurantsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private storage: StorageService,
+  ) {}
 
   async findAll(query: QueryRestaurantsDto) {
     const { lat, lng, radius = 1, isOpen } = query;
@@ -92,7 +96,7 @@ export class RestaurantsService {
     return restaurant;
   }
 
-  async create(ownerId: string, dto: CreateRestaurantDto) {
+  async create(ownerId: string, dto: CreateRestaurantDto, logo?: Express.Multer.File) {
     const existing = await this.prisma.restaurant.findUnique({
       where: { ownerId },
     });
@@ -100,17 +104,29 @@ export class RestaurantsService {
       throw new ConflictException('Vous avez déjà un restaurant');
     }
 
+    if (logo) {
+      dto.logoUrl = await this.storage.upload(logo, 'restaurants');
+    }
+
     return this.prisma.restaurant.create({
       data: {
         ...dto,
+        logoUrl: dto.logoUrl || '',
         avgPrepTime: dto.avgPrepTime ?? 20,
         ownerId,
       },
     });
   }
 
-  async update(ownerId: string, id: string, dto: UpdateRestaurantDto) {
+  async update(ownerId: string, id: string, dto: UpdateRestaurantDto, logo?: Express.Multer.File) {
     const restaurant = await this.ensureOwnership(ownerId, id);
+
+    if (logo) {
+      if (restaurant.logoUrl) {
+        await this.storage.delete(restaurant.logoUrl).catch(() => {});
+      }
+      dto.logoUrl = await this.storage.upload(logo, 'restaurants');
+    }
 
     return this.prisma.restaurant.update({
       where: { id: restaurant.id },
@@ -172,6 +188,104 @@ export class RestaurantsService {
       totalRevenue: total._sum.totalAmount || 0,
       avgRating: restaurant.avgRating,
       totalRatings: restaurant.totalRatings,
+    };
+  }
+
+  async getAnalytics(ownerId: string, id: string) {
+    const restaurant = await this.ensureOwnership(ownerId, id);
+
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now);
+    thirtyDaysAgo.setDate(now.getDate() - 30);
+
+    // Daily revenue for last 30 days
+    const dailyRevenue = await this.prisma.$queryRaw<
+      Array<{ day: string; orders: bigint; revenue: number }>
+    >`
+      SELECT
+        TO_CHAR(o."createdAt", 'YYYY-MM-DD') AS day,
+        COUNT(DISTINCT o.id) AS orders,
+        COALESCE(SUM(oi.subtotal), 0) AS revenue
+      FROM orders o
+      JOIN order_items oi ON oi."orderId" = o.id
+      WHERE oi."restaurantId" = ${restaurant.id}
+        AND o.status = 'DELIVERED'
+        AND o."createdAt" >= ${thirtyDaysAgo}
+      GROUP BY day
+      ORDER BY day ASC
+    `;
+
+    // Top dishes by quantity
+    const topDishes = await this.prisma.$queryRaw<
+      Array<{ dishId: string; name: string; quantity: bigint; revenue: number }>
+    >`
+      SELECT
+        oi."dishId",
+        d.name,
+        SUM(oi.quantity) AS quantity,
+        SUM(oi.subtotal) AS revenue
+      FROM order_items oi
+      JOIN dishes d ON d.id = oi."dishId"
+      JOIN orders o ON o.id = oi."orderId"
+      WHERE oi."restaurantId" = ${restaurant.id}
+        AND o.status = 'DELIVERED'
+      GROUP BY oi."dishId", d.name
+      ORDER BY quantity DESC
+      LIMIT 10
+    `;
+
+    // Revenue by payment method
+    const byPaymentMethod = await this.prisma.$queryRaw<
+      Array<{ method: string; orders: bigint; revenue: number }>
+    >`
+      SELECT
+        COALESCE(o."paymentMethod", 'UNKNOWN') AS method,
+        COUNT(DISTINCT o.id) AS orders,
+        COALESCE(SUM(oi.subtotal), 0) AS revenue
+      FROM orders o
+      JOIN order_items oi ON oi."orderId" = o.id
+      WHERE oi."restaurantId" = ${restaurant.id}
+        AND o.status = 'DELIVERED'
+      GROUP BY o."paymentMethod"
+      ORDER BY revenue DESC
+    `;
+
+    // Orders by hour of day (peak hours)
+    const byHour = await this.prisma.$queryRaw<
+      Array<{ hour: number; orders: bigint }>
+    >`
+      SELECT
+        EXTRACT(HOUR FROM o."createdAt") AS hour,
+        COUNT(DISTINCT o.id) AS orders
+      FROM orders o
+      JOIN order_items oi ON oi."orderId" = o.id
+      WHERE oi."restaurantId" = ${restaurant.id}
+        AND o.status = 'DELIVERED'
+      GROUP BY hour
+      ORDER BY hour ASC
+    `;
+
+    return {
+      dailyRevenue: dailyRevenue.map((d) => ({
+        day: d.day,
+        orders: Number(d.orders),
+        revenue: Number(d.revenue),
+      })),
+      topDishes: topDishes.map((d) => ({
+        dishId: d.dishId,
+        name: d.name,
+        quantity: Number(d.quantity),
+        revenue: Number(d.revenue),
+      })),
+      byPaymentMethod: byPaymentMethod.map((d) => ({
+        method: d.method,
+        orders: Number(d.orders),
+        revenue: Number(d.revenue),
+      })),
+      byHour: byHour.map((d) => ({
+        hour: Number(d.hour),
+        orders: Number(d.orders),
+      })),
     };
   }
 
