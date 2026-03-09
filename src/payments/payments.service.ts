@@ -348,9 +348,47 @@ export class PaymentsService {
       throw new ForbiddenException("Cette transaction ne vous concerne pas");
     }
 
+    // Si la transaction est deja confirmee (par callback ou verification precedente), retourner directement
+    if (transaction.status === TransactionStatus.SUCCESS) {
+      return {
+        transactionId: transaction.id,
+        status: TransactionStatus.SUCCESS,
+        verified: true,
+        message: 'Paiement deja confirme',
+      };
+    }
+
+    // Si la transaction a echoue, pas besoin de re-verifier
+    if (transaction.status === TransactionStatus.FAILED) {
+      return {
+        transactionId: transaction.id,
+        status: TransactionStatus.FAILED,
+        verified: false,
+        message: 'Paiement echoue',
+      };
+    }
+
     if (!transaction.mobileProvider) {
       throw new BadRequestException('Méthode de paiement non définie pour cette transaction');
     }
+
+    // Verifier aussi si la commande est deja payee (callback recu entre-temps)
+    if (transaction.order && transaction.order.status === OrderStatus.PAID) {
+      // Mettre a jour la transaction si elle est encore PENDING
+      if (transaction.status === TransactionStatus.PENDING) {
+        await this.prisma.transaction.update({
+          where: { id: transaction.id },
+          data: { status: TransactionStatus.SUCCESS, note: 'Confirme via statut commande' },
+        });
+      }
+      return {
+        transactionId: transaction.id,
+        status: TransactionStatus.SUCCESS,
+        verified: true,
+        message: 'Paiement confirme',
+      };
+    }
+
     const strategy = this.getStrategy(transaction.mobileProvider);
     const result = await strategy.verifyPayment(dto.reference);
 

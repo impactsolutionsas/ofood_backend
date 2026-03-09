@@ -24,8 +24,8 @@ export class OrangeMoneyStrategy implements IPaymentStrategy {
     this.baseUrl = rawBaseUrl.startsWith('http') ? rawBaseUrl : `https://${rawBaseUrl}`;
     this.merchantCode = this.configService.get<string>('ORANGE_MONEY_MERCHANT_CODE', '');
     this.merchantName = this.configService.get<string>('ORANGE_MONEY_MERCHANT_NAME', 'OFood');
-    this.appBaseUrl = this.configService.get<string>('APP_URL', '');
-    this.frontendBaseUrl = this.configService.get<string>('FRONTEND_URL', '') || this.appBaseUrl;
+    this.appBaseUrl = this.configService.get<string>('APP_URL', '').replace(/\/+$/, '');
+    this.frontendBaseUrl = (this.configService.get<string>('FRONTEND_URL', '') || this.appBaseUrl).replace(/\/+$/, '');
   }
 
   private async getAccessToken(): Promise<string> {
@@ -66,8 +66,8 @@ export class OrangeMoneyStrategy implements IPaymentStrategy {
     try {
       const token = await this.getAccessToken();
 
-      const callbackSuccessUrl = `${this.frontendBaseUrl}/payment/success?orderId=${orderId}`;
-      const callbackCancelUrl = `${this.frontendBaseUrl}/payment/cancelled?orderId=${orderId}`;
+      const callbackSuccessUrl = `${this.frontendBaseUrl}/client/orders/${orderId}`;
+      const callbackCancelUrl = `${this.frontendBaseUrl}/client/orders/${orderId}`;
 
       const response = await fetch(`${this.baseUrl}/api/eWallet/v4/qrcode`, {
         method: 'POST',
@@ -167,6 +167,16 @@ export class OrangeMoneyStrategy implements IPaymentStrategy {
 
       if (!response.ok) {
         const errorBody = await response.text();
+        // 404 = QR code consomme apres paiement, pas une vraie erreur
+        if (response.status === 404) {
+          this.logger.log(`Orange Money QR ${reference} non trouve (probablement deja consomme)`);
+          return {
+            success: false,
+            pending: false,
+            reference,
+            message: 'QR code non trouve — verifiez le statut en base',
+          };
+        }
         this.logger.error(`Orange Money verify failed: ${response.status} - ${errorBody}`);
         return {
           success: false,

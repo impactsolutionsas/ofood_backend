@@ -190,7 +190,7 @@ export class OrdersService {
     if (statusFilter === 'history') {
       where.status = { in: [OrderStatus.DELIVERED, OrderStatus.CANCELLED] };
     } else if (statusFilter === 'active') {
-      where.status = { in: [OrderStatus.PENDING, OrderStatus.PAID, OrderStatus.PREPARING, OrderStatus.READY] };
+      where.status = { in: [OrderStatus.PENDING, OrderStatus.AWAITING_PAYMENT, OrderStatus.PAID, OrderStatus.PREPARING, OrderStatus.READY] };
     }
 
     return this.prisma.order.findMany({
