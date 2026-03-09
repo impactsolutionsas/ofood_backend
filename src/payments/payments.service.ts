@@ -86,7 +86,7 @@ export class PaymentsService {
       order.id,
     );
 
-    console.log('Résultat du paiement:', result);
+    //console.log('Résultat du paiement:', result);
 
     if (!result.success) {
       const failedTx = await this.prisma.transaction.create({
