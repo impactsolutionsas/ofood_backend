@@ -115,11 +115,11 @@ export class OrdersService {
           where: { id: restaurant.ownerId },
           select: { phone: true },
         });
-        if (owner) {
+        /* if (owner) {
           this.smsService
             .sendSms(owner.phone, `Nouvelle commande reçue sur ${restaurant.name} !`)
             .catch(() => {});
-        }
+        }*/
       }
     }
 
@@ -310,14 +310,14 @@ export class OrdersService {
     }
 
     // SMS to client when order is READY
-    if (dto.status === OrderStatus.READY && order.user) {
+   /* if (dto.status === OrderStatus.READY && order.user) {
       this.smsService
         .sendSms(
           order.user.phone,
           `${order.user.firstName}, votre commande est prête ! Rendez-vous au restaurant.`,
         )
         .catch(() => {});
-    }
+    }*/
 
     return updated;
   }
