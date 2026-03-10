@@ -33,7 +33,11 @@ export class UsersService {
       throw new NotFoundException('Utilisateur non trouvé');
     }
 
-    return user;
+    return {
+      ...user,
+      needsRestaurantSetup:
+        user.role === 'RESTAURANT_OWNER' && !user.restaurant,
+    };
   }
 
   async updateMe(userId: string, dto: UpdateUserDto) {

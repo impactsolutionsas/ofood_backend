@@ -293,6 +293,9 @@ export class AuthService {
   private toUserResponse(
     user: User & { restaurant?: { id: string; name: string; isVerified: boolean; isOpen: boolean } | null },
   ): UserResponseDto {
+    const needsRestaurantSetup =
+      user.role === 'RESTAURANT_OWNER' && !user.restaurant;
+
     return new UserResponseDto({
       id: user.id,
       firstName: user.firstName,
@@ -302,6 +305,7 @@ export class AuthService {
       role: user.role,
       isActive: user.isActive,
       restaurant: user.restaurant ?? null,
+      needsRestaurantSetup,
     });
   }
 }

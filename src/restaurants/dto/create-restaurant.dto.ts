@@ -33,10 +33,10 @@ export class CreateRestaurantDto {
   @IsLongitude()
   lng: number;
 
-  @ApiProperty({ example: 'Restaurant sénégalais traditionnel' })
+  @ApiPropertyOptional({ example: 'Restaurant sénégalais traditionnel' })
+  @IsOptional()
   @IsString()
-  @MinLength(1)
-  description: string;
+  description?: string;
 
   @ApiPropertyOptional({ example: 'https://...', description: 'URL du logo (auto si fichier uploadé)' })
   @IsOptional()

@@ -22,6 +22,7 @@ import { PushModule } from './push/push.module';
 // import { DeliveryModule } from './delivery/delivery.module'; // Désactivé — livraison pas encore disponible
 import { StorageModule } from './storage/storage.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { RestaurantRequiredGuard } from './common/guards/restaurant-required.guard';
 
 @Module({
   imports: [
@@ -51,6 +52,10 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RestaurantRequiredGuard,
     },
   ],
 })

@@ -3,9 +3,11 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { SkipRestaurantCheck } from '../common/decorators/skip-restaurant-check.decorator';
 
 @ApiTags('Users')
 @ApiBearerAuth()
+@SkipRestaurantCheck()
 @Controller('users')
 export class UsersController {
   constructor(private usersService: UsersService) {}

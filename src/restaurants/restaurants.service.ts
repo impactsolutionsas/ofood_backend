@@ -111,6 +111,7 @@ export class RestaurantsService {
     return this.prisma.restaurant.create({
       data: {
         ...dto,
+        description: dto.description ?? '',
         logoUrl: dto.logoUrl || '',
         avgPrepTime: dto.avgPrepTime ?? 20,
         ownerId,

@@ -11,6 +11,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ParseUuidPipe } from '../common/pipes/parse-uuid.pipe';
+import { SkipRestaurantCheck } from '../common/decorators/skip-restaurant-check.decorator';
 
 @ApiTags('Restaurants')
 @Controller('restaurants')
@@ -78,6 +79,7 @@ export class RestaurantsController {
   @ApiBearerAuth()
   @UseGuards(RolesGuard)
   @Roles(Role.RESTAURANT_OWNER)
+  @SkipRestaurantCheck()
   @Post()
   @UseInterceptors(FileInterceptor('logo'))
   @ApiConsumes('multipart/form-data')

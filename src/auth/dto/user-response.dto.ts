@@ -40,6 +40,9 @@ export class UserResponseDto {
   @ApiPropertyOptional({ type: UserRestaurantDto, nullable: true })
   restaurant?: UserRestaurantDto | null;
 
+  @ApiProperty({ example: false, description: 'true si RESTAURANT_OWNER sans restaurant créé' })
+  needsRestaurantSetup: boolean;
+
   constructor(partial: Partial<UserResponseDto>) {
     Object.assign(this, partial);
   }
