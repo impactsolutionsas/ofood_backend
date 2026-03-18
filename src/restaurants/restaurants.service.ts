@@ -3,10 +3,12 @@ import {
   NotFoundException,
   ConflictException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { OrderStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { GeocodingService } from './geocoding.service';
 import { CreateRestaurantDto } from './dto/create-restaurant.dto';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 import { QueryRestaurantsDto } from './dto/query-restaurants.dto';
@@ -16,6 +18,7 @@ export class RestaurantsService {
   constructor(
     private prisma: PrismaService,
     private storage: StorageService,
+    private geocoding: GeocodingService,
   ) {}
 
   async findAll(query: QueryRestaurantsDto) {
@@ -77,13 +80,13 @@ export class RestaurantsService {
       .map((r) => ({ ...r, distance: Math.round(r.distance * 100) / 100 }));
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, isAuthenticated = false) {
     const restaurant = await this.prisma.restaurant.findUnique({
       where: { id },
       include: {
-        owner: {
-          select: { id: true, firstName: true, lastName: true, phone: true },
-        },
+        owner: isAuthenticated
+          ? { select: { id: true, firstName: true, lastName: true, phone: true } }
+          : false,
         dishes: { where: { isAvailable: true }, orderBy: { category: 'asc' } },
         _count: { select: { ratings: true } },
       },
@@ -108,12 +111,29 @@ export class RestaurantsService {
       dto.logoUrl = await this.storage.upload(logo, 'restaurants');
     }
 
+    // Geocode address if coordinates not provided
+    let { lat, lng } = dto;
+    if (lat === undefined || lng === undefined) {
+      const result = await this.geocoding.geocodeAddress(dto.address);
+      if (!result) {
+        throw new BadRequestException(
+          'Impossible de géolocaliser cette adresse. Veuillez fournir les coordonnées GPS ou vérifier l\'adresse.',
+        );
+      }
+      lat = result.lat;
+      lng = result.lng;
+    }
+
     return this.prisma.restaurant.create({
       data: {
-        ...dto,
+        name: dto.name,
+        address: dto.address,
+        lat,
+        lng,
         description: dto.description ?? '',
         logoUrl: dto.logoUrl || '',
         avgPrepTime: dto.avgPrepTime ?? 20,
+        dailyCapacity: dto.dailyCapacity,
         ownerId,
       },
     });

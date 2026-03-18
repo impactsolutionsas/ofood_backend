@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { AdminService } from './admin.service';
@@ -36,11 +36,30 @@ export class AdminController {
   }
 
   @Patch('restaurants/:id/verify')
-  @ApiOperation({ summary: 'Vérifier/valider un restaurant (ADMIN)' })
-  @ApiResponse({ status: 200, description: 'Restaurant vérifié' })
+  @ApiOperation({ summary: 'Basculer la vérification d\'un restaurant (ADMIN)' })
+  @ApiResponse({ status: 200, description: 'Statut de vérification mis à jour' })
   @ApiResponse({ status: 404, description: 'Restaurant non trouvé' })
-  async verifyRestaurant(@Param('id', ParseUuidPipe) id: string) {
-    return this.adminService.verifyRestaurant(id);
+  async toggleVerifyRestaurant(@Param('id', ParseUuidPipe) id: string) {
+    return this.adminService.toggleVerifyRestaurant(id);
+  }
+
+  @Patch('restaurants/:id')
+  @ApiOperation({ summary: 'Mettre à jour un restaurant (ADMIN)' })
+  @ApiResponse({ status: 200, description: 'Restaurant mis à jour' })
+  @ApiResponse({ status: 404, description: 'Restaurant non trouvé' })
+  async updateRestaurant(
+    @Param('id', ParseUuidPipe) id: string,
+    @Body() body: { name?: string; address?: string; description?: string; avgPrepTime?: number; dailyCapacity?: string },
+  ) {
+    return this.adminService.updateRestaurant(id, body);
+  }
+
+  @Patch('restaurants/:id/toggle-active')
+  @ApiOperation({ summary: 'Activer/désactiver un restaurant (ADMIN)' })
+  @ApiResponse({ status: 200, description: 'Statut du restaurant mis à jour' })
+  @ApiResponse({ status: 404, description: 'Restaurant non trouvé' })
+  async toggleRestaurantActive(@Param('id', ParseUuidPipe) id: string) {
+    return this.adminService.toggleRestaurantActive(id);
   }
 
   @Get('orders')

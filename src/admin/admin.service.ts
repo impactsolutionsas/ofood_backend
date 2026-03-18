@@ -66,7 +66,7 @@ export class AdminService {
     });
   }
 
-  async verifyRestaurant(id: string) {
+  async toggleVerifyRestaurant(id: string) {
     const restaurant = await this.prisma.restaurant.findUnique({
       where: { id },
     });
@@ -77,7 +77,37 @@ export class AdminService {
 
     return this.prisma.restaurant.update({
       where: { id },
-      data: { isVerified: true },
+      data: { isVerified: !restaurant.isVerified },
+    });
+  }
+
+  async updateRestaurant(id: string, data: { name?: string; address?: string; description?: string; avgPrepTime?: number; dailyCapacity?: string }) {
+    const restaurant = await this.prisma.restaurant.findUnique({
+      where: { id },
+    });
+
+    if (!restaurant) {
+      throw new NotFoundException('Restaurant non trouvé');
+    }
+
+    return this.prisma.restaurant.update({
+      where: { id },
+      data,
+    });
+  }
+
+  async toggleRestaurantActive(id: string) {
+    const restaurant = await this.prisma.restaurant.findUnique({
+      where: { id },
+    });
+
+    if (!restaurant) {
+      throw new NotFoundException('Restaurant non trouvé');
+    }
+
+    return this.prisma.restaurant.update({
+      where: { id },
+      data: { isOpen: !restaurant.isOpen },
     });
   }
 

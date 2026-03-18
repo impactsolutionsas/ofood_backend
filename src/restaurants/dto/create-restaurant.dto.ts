@@ -21,17 +21,19 @@ export class CreateRestaurantDto {
   @MinLength(1)
   address: string;
 
-  @ApiProperty({ example: 14.6937 })
-  @Transform(({ value }) => parseFloat(value))
+  @ApiPropertyOptional({ example: 14.6937, description: 'Latitude (optionnel si adresse fournie — sera géocodée)' })
+  @IsOptional()
+  @Transform(({ value }) => value !== undefined && value !== '' ? parseFloat(value) : undefined)
   @IsNumber()
   @IsLatitude()
-  lat: number;
+  lat?: number;
 
-  @ApiProperty({ example: -17.4441 })
-  @Transform(({ value }) => parseFloat(value))
+  @ApiPropertyOptional({ example: -17.4441, description: 'Longitude (optionnel si adresse fournie — sera géocodée)' })
+  @IsOptional()
+  @Transform(({ value }) => value !== undefined && value !== '' ? parseFloat(value) : undefined)
   @IsNumber()
   @IsLongitude()
-  lng: number;
+  lng?: number;
 
   @ApiPropertyOptional({ example: 'Restaurant sénégalais traditionnel' })
   @IsOptional()

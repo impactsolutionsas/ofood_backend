@@ -27,7 +27,9 @@ import { QueryDishesDto } from './dto/query-dishes.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { OptionalJwtGuard } from '../common/guards/optional-jwt.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { JwtPayload } from '../common/decorators/current-user.decorator';
 import { ParseUuidPipe } from '../common/pipes/parse-uuid.pipe';
 
 @ApiTags('Dishes')
@@ -36,19 +38,27 @@ export class DishesController {
   constructor(private dishesService: DishesService) {}
 
   @Public()
+  @UseGuards(OptionalJwtGuard)
   @Get('dishes')
   @ApiOperation({ summary: 'Liste des plats (filtre géo + catégorie)' })
   @ApiResponse({ status: 200, description: 'Liste retournée' })
-  async findAll(@Query() query: QueryDishesDto) {
-    return this.dishesService.findAll(query);
+  async findAll(
+    @CurrentUser() user: JwtPayload | null,
+    @Query() query: QueryDishesDto,
+  ) {
+    return this.dishesService.findAll(query, !!user);
   }
 
   @Public()
+  @UseGuards(OptionalJwtGuard)
   @Get('dishes/today')
   @ApiOperation({ summary: 'Plats du menu du jour (filtre géo + catégorie)' })
   @ApiResponse({ status: 200, description: 'Plats du jour retournés' })
-  async findToday(@Query() query: QueryDishesDto) {
-    return this.dishesService.findTodayDishes(query);
+  async findToday(
+    @CurrentUser() user: JwtPayload | null,
+    @Query() query: QueryDishesDto,
+  ) {
+    return this.dishesService.findTodayDishes(query, !!user);
   }
 
   @Public()

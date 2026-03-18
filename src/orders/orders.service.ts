@@ -41,7 +41,7 @@ export class OrdersService {
     const dishIds = dto.items.map((i) => i.dishId);
     const dishes = await this.prisma.dish.findMany({
       where: { id: { in: dishIds } },
-      include: { restaurant: { select: { id: true, name: true, ownerId: true } } },
+      include: { restaurant: { select: { id: true, name: true, ownerId: true, isOpen: true } } },
     });
 
     const dishMap = new Map(dishes.map((d) => [d.id, d]));
@@ -54,6 +54,14 @@ export class OrdersService {
       }
       if (!dish.isAvailable) {
         throw new BadRequestException(`Plat indisponible : ${dish.name}`);
+      }
+    }
+
+    // Validate all restaurants are open
+    const restaurantMap = new Map(dishes.map((d) => [d.restaurant.id, d.restaurant]));
+    for (const [, restaurant] of restaurantMap) {
+      if (!restaurant.isOpen) {
+        throw new BadRequestException(`Le restaurant « ${restaurant.name} » est actuellement fermé`);
       }
     }
 

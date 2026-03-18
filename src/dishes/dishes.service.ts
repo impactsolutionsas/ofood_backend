@@ -17,8 +17,19 @@ export class DishesService {
     private storage: StorageService,
   ) {}
 
-  async findAll(query: QueryDishesDto) {
+  async findAll(query: QueryDishesDto, isAuthenticated = false) {
     const { lat, lng, radius = 1, category, restaurantId } = query;
+
+    const restaurantSelect = {
+      id: true,
+      name: isAuthenticated,
+      address: isAuthenticated,
+      logoUrl: true,
+      avgRating: true,
+      isOpen: true,
+      lat: true,
+      lng: true,
+    };
 
     if (lat !== undefined && lng !== undefined) {
       const nearbyRestaurantIds = await this.prisma.$queryRaw<
@@ -46,7 +57,7 @@ export class DishesService {
       return this.prisma.dish.findMany({
         where,
         include: {
-          restaurant: { select: { id: true, name: true, address: true } },
+          restaurant: { select: restaurantSelect },
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -60,7 +71,7 @@ export class DishesService {
     return this.prisma.dish.findMany({
       where,
       include: {
-        restaurant: { select: { id: true, name: true, address: true } },
+        restaurant: { select: restaurantSelect },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -153,7 +164,7 @@ export class DishesService {
     return { message: 'Plat supprimé' };
   }
 
-  async findTodayDishes(query: QueryDishesDto) {
+  async findTodayDishes(query: QueryDishesDto, isAuthenticated = false) {
     const { lat, lng, radius = 5, category } = query;
 
     const JS_DAY_TO_ENUM: Record<number, DayOfWeek> = {
@@ -198,7 +209,18 @@ export class DishesService {
       include: {
         dish: {
           include: {
-            restaurant: { select: { id: true, name: true, address: true } },
+            restaurant: {
+              select: {
+                id: true,
+                name: isAuthenticated,
+                address: isAuthenticated,
+                logoUrl: true,
+                avgRating: true,
+                isOpen: true,
+                lat: true,
+                lng: true,
+              },
+            },
           },
         },
       },

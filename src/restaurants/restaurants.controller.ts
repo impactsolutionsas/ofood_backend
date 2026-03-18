@@ -1,22 +1,28 @@
-import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { RestaurantsService } from './restaurants.service';
+import { GeocodingService } from './geocoding.service';
 import { CreateRestaurantDto } from './dto/create-restaurant.dto';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 import { QueryRestaurantsDto } from './dto/query-restaurants.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { OptionalJwtGuard } from '../common/guards/optional-jwt.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { JwtPayload } from '../common/decorators/current-user.decorator';
 import { ParseUuidPipe } from '../common/pipes/parse-uuid.pipe';
 import { SkipRestaurantCheck } from '../common/decorators/skip-restaurant-check.decorator';
 
 @ApiTags('Restaurants')
 @Controller('restaurants')
 export class RestaurantsController {
-  constructor(private restaurantsService: RestaurantsService) {}
+  constructor(
+    private restaurantsService: RestaurantsService,
+    private geocodingService: GeocodingService,
+  ) {}
 
   @Public()
   @Get()
@@ -68,12 +74,32 @@ export class RestaurantsController {
   }
 
   @Public()
+  @Get('geocode')
+  @ApiOperation({ summary: 'Géocoder une adresse (Nominatim)' })
+  @ApiResponse({ status: 200, description: 'Coordonnées retournées' })
+  @ApiResponse({ status: 400, description: 'Adresse introuvable' })
+  async geocodeAddress(@Query('address') address: string) {
+    if (!address || address.trim().length < 3) {
+      throw new BadRequestException('Adresse trop courte');
+    }
+    const result = await this.geocodingService.geocodeAddress(address);
+    if (!result) {
+      throw new BadRequestException('Adresse introuvable');
+    }
+    return result;
+  }
+
+  @Public()
+  @UseGuards(OptionalJwtGuard)
   @Get(':id')
   @ApiOperation({ summary: 'Détail d\'un restaurant' })
   @ApiResponse({ status: 200, description: 'Restaurant retourné' })
   @ApiResponse({ status: 404, description: 'Restaurant non trouvé' })
-  async findOne(@Param('id', ParseUuidPipe) id: string) {
-    return this.restaurantsService.findOne(id);
+  async findOne(
+    @CurrentUser() user: JwtPayload | null,
+    @Param('id', ParseUuidPipe) id: string,
+  ) {
+    return this.restaurantsService.findOne(id, !!user);
   }
 
   @ApiBearerAuth()

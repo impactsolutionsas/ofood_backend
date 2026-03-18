@@ -157,7 +157,7 @@ model Restaurant {
   description   String
   avgRating     Float         @default(0)
   totalRatings  Int           @default(0)
-  isOpen        Boolean       @default(false)
+  isOpen        Boolean       @default(true)
   avgPrepTime   Int           @default(20)
   dailyCapacity String
   isVerified    Boolean       @default(false)
