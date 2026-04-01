@@ -165,7 +165,12 @@ export class RestaurantsService {
     const startOfMonth = new Date(startOfToday);
     startOfMonth.setDate(startOfToday.getDate() - 30);
 
-    const deliveredStatuses = [OrderStatus.DELIVERED];
+    const deliveredStatuses = [
+      OrderStatus.PAID,
+      OrderStatus.PREPARING,
+      OrderStatus.READY,
+      OrderStatus.DELIVERED,
+    ];
 
     const buildFilter = (since: Date) => ({
       where: {

@@ -79,11 +79,16 @@ export class OrdersService {
       };
     });
 
-    const totalAmount = orderItems.reduce((sum, i) => sum + i.subtotal, 0);
+    const itemsTotal = orderItems.reduce((sum, i) => sum + i.subtotal, 0);
+    const deliveryType = dto.deliveryType || DeliveryType.PICKUP;
+    const deliveryFee =
+      deliveryType === DeliveryType.DELIVERY
+        ? parseInt(process.env.DELIVERY_BASE_FEE || '500', 10)
+        : 0;
+    const totalAmount = itemsTotal + deliveryFee;
 
     // Create order in transaction
     const isCod = dto.paymentMethod === PaymentMethod.CASH_ON_DELIVERY;
-    const deliveryType = dto.deliveryType || DeliveryType.PICKUP;
     const order = await this.prisma.$transaction(async (tx) => {
       return tx.order.create({
         data: {

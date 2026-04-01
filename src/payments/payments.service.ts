@@ -1,6 +1,7 @@
 import {
   Injectable,
   Logger,
+  OnModuleInit,
   NotFoundException,
   ForbiddenException,
   BadRequestException,
@@ -16,7 +17,7 @@ import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 import { VerifyPaymentDto } from './dto/verify-payment.dto';
 
 @Injectable()
-export class PaymentsService {
+export class PaymentsService implements OnModuleInit {
   private readonly logger = new Logger(PaymentsService.name);
   private readonly strategies: Map<PaymentMethod, IPaymentStrategy>;
 
@@ -25,7 +26,7 @@ export class PaymentsService {
     private smsService: SmsService,
     private ordersGateway: OrdersGateway,
     mockStrategy: MockPaymentStrategy,
-    orangeMoneyStrategy: OrangeMoneyStrategy,
+    private orangeMoneyStrategy: OrangeMoneyStrategy,
   ) {
     this.strategies = new Map<PaymentMethod, IPaymentStrategy>([
       [PaymentMethod.ORANGE_MONEY, orangeMoneyStrategy],
@@ -40,6 +41,16 @@ export class PaymentsService {
       throw new BadRequestException(`Méthode de paiement non supportée: ${method}`);
     }
     return strategy;
+  }
+
+  async onModuleInit() {
+    // Register Orange Money webhook URL once on startup (idempotent on OM side)
+    try {
+      await this.orangeMoneyStrategy.registerCallback();
+      this.logger.log('Callback Orange Money enregistré avec succès');
+    } catch (e) {
+      this.logger.warn(`Impossible d'enregistrer le callback Orange Money: ${e?.message || e}`);
+    }
   }
 
   async initiatePayment(userId: string, dto: InitiatePaymentDto) {
@@ -262,7 +273,19 @@ export class PaymentsService {
   }
 
   private async confirmPaymentFromCallback(order: any) {
+    // Idempotency: skip if already processed
+    if (order.status === OrderStatus.PAID) {
+      this.logger.log(`Order ${order.id} already PAID, skipping wallet credit`);
+      return;
+    }
+
     await this.prisma.$transaction(async (tx) => {
+      const current = await tx.order.findUnique({
+        where: { id: order.id },
+        select: { status: true },
+      });
+      if (current?.status === OrderStatus.PAID) return;
+
       await tx.order.update({
         where: { id: order.id },
         data: {

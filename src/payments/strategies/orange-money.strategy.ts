@@ -167,14 +167,15 @@ export class OrangeMoneyStrategy implements IPaymentStrategy {
 
       if (!response.ok) {
         const errorBody = await response.text();
-        // 404 = QR code consomme apres paiement, pas une vraie erreur
         if (response.status === 404) {
-          this.logger.log(`Orange Money QR ${reference} non trouve (probablement deja consomme)`);
+          // 404 = QR consommé après paiement (deep link) — OM supprime le QR après usage.
+          // Le paiement a probablement réussi : on attend le webhook pour confirmer.
+          this.logger.log(`Orange Money QR ${reference}: 404 — QR consommé, paiement probable, attente webhook`);
           return {
             success: false,
-            pending: false,
+            pending: true,   // ← keep polling; webhook will confirm
             reference,
-            message: 'QR code non trouve — verifiez le statut en base',
+            message: 'QR consommé — confirmation en attente',
           };
         }
         this.logger.error(`Orange Money verify failed: ${response.status} - ${errorBody}`);
@@ -189,12 +190,18 @@ export class OrangeMoneyStrategy implements IPaymentStrategy {
       const data = await response.json();
       const status = (data.status || '').toUpperCase();
 
+      this.logger.log(`Orange Money QR ${reference} status: ${status} — raw: ${JSON.stringify(data)}`);
+
       if (status === 'SUCCESS' || status === 'ACCEPTED') {
         return { success: true, pending: false, reference, message: 'Paiement Orange Money confirmé' };
       }
 
       if (status === 'PENDING' || status === 'INITIATED' || status === 'PRE_INITIATED') {
         return { success: false, pending: true, reference, message: 'Paiement en cours de traitement' };
+      }
+
+      if (status === 'EXPIRED' || status === 'CANCELLED') {
+        return { success: false, pending: false, reference, message: `QR ${status.toLowerCase()}` };
       }
 
       return { success: false, pending: false, reference, message: `Paiement échoué: ${status}` };
