@@ -66,8 +66,8 @@ export class OrangeMoneyStrategy implements IPaymentStrategy {
     try {
       const token = await this.getAccessToken();
 
-      const callbackSuccessUrl = `${this.frontendBaseUrl}/client/orders/${orderId}`;
-      const callbackCancelUrl = `${this.frontendBaseUrl}/client/orders/${orderId}`;
+      const callbackSuccessUrl = `${this.appBaseUrl}/payments/orange-money/success/${orderId}`;
+      const callbackCancelUrl = `${this.appBaseUrl}/payments/orange-money/cancel/${orderId}`;
 
       const response = await fetch(`${this.baseUrl}/api/eWallet/v4/qrcode`, {
         method: 'POST',
@@ -131,6 +131,10 @@ export class OrangeMoneyStrategy implements IPaymentStrategy {
         message: 'Erreur technique Orange Money',
       };
     }
+  }
+
+  getFrontendOrderUrl(orderId: string): string {
+    return `${this.frontendBaseUrl}/client/orders/${orderId}`;
   }
 
   async registerCallback(): Promise<any> {

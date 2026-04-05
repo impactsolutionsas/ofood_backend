@@ -1,5 +1,6 @@
-import { Controller, Post, Get, Param, Body, UseGuards, HttpCode } from '@nestjs/common';
+import { Controller, Post, Get, Param, Body, UseGuards, HttpCode, Res, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Response } from 'express';
 import { Role } from '@prisma/client';
 import { PaymentsService } from './payments.service';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
@@ -55,6 +56,32 @@ export class PaymentsController {
   @ApiResponse({ status: 200, description: 'Notification reçue' })
   async orangeMoneyCallback(@Body() payload: any) {
     return this.paymentsService.handleOrangeMoneyCallback(payload);
+  }
+
+  @Public()
+  @Get('orange-money/success/:orderId')
+  @ApiOperation({ summary: 'Callback succès Orange Money (redirection GET)' })
+  async orangeMoneySuccess(
+    @Param('orderId') orderId: string,
+    @Query() queryData: any,
+    @Res() res: Response,
+  ) {
+    await this.paymentsService.handleOrangeMoneyRedirectCallback(orderId, 'success', queryData);
+    const frontendUrl = this.orangeMoneyStrategy.getFrontendOrderUrl(orderId);
+    return res.redirect(frontendUrl);
+  }
+
+  @Public()
+  @Get('orange-money/cancel/:orderId')
+  @ApiOperation({ summary: 'Callback annulation Orange Money (redirection GET)' })
+  async orangeMoneyCancel(
+    @Param('orderId') orderId: string,
+    @Query() queryData: any,
+    @Res() res: Response,
+  ) {
+    await this.paymentsService.handleOrangeMoneyRedirectCallback(orderId, 'cancel', queryData);
+    const frontendUrl = this.orangeMoneyStrategy.getFrontendOrderUrl(orderId);
+    return res.redirect(frontendUrl);
   }
 
   @UseGuards(RolesGuard)

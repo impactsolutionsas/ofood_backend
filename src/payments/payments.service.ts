@@ -213,12 +213,94 @@ export class PaymentsService implements OnModuleInit {
     return transaction;
   }
 
-  async handleOrangeMoneyCallback(payload: any) {
-    this.logger.log(`Orange Money callback reçu: ${JSON.stringify(payload)}`);
+  async handleOrangeMoneyRedirectCallback(orderId: string, type: 'success' | 'cancel', queryData: any) {
+    this.logger.log(`Orange Money redirect callback (${type}) pour commande ${orderId} — query: ${JSON.stringify(queryData)}`);
 
-    const reference = payload.qrId || payload.transactionId || payload.requestId;
+    const transaction = await this.prisma.transaction.findFirst({
+      where: { orderId, status: TransactionStatus.PENDING, mobileProvider: PaymentMethod.ORANGE_MONEY },
+      include: {
+        order: {
+          include: {
+            items: {
+              include: {
+                restaurant: { select: { id: true, name: true, ownerId: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!transaction || !transaction.order) {
+      this.logger.warn(`Aucune transaction PENDING trouvée pour commande ${orderId}`);
+      return;
+    }
+
+    // Si déjà traitée, ignorer
+    if (transaction.order.status === OrderStatus.PAID) {
+      this.logger.log(`Commande ${orderId} déjà PAID, callback ignoré`);
+      return;
+    }
+
+    if (type === 'cancel') {
+      await this.prisma.transaction.update({
+        where: { id: transaction.id },
+        data: { status: TransactionStatus.FAILED, note: 'Paiement annulé par l\'utilisateur' },
+      });
+      await this.prisma.order.update({
+        where: { id: orderId },
+        data: { status: OrderStatus.PENDING },
+      });
+      this.logger.log(`Paiement annulé pour commande ${orderId}`);
+      return;
+    }
+
+    // type === 'success' — vérifier le statut réel via l'API Orange Money
+    if (transaction.reference) {
+      try {
+        const verifyResult = await this.orangeMoneyStrategy.verifyPayment(transaction.reference);
+        this.logger.log(`Vérification OM pour ${transaction.reference}: success=${verifyResult.success}, pending=${verifyResult.pending}`);
+
+        if (verifyResult.success) {
+          await this.prisma.transaction.update({
+            where: { id: transaction.id },
+            data: { status: TransactionStatus.SUCCESS, note: 'Confirmé via callback success + vérification API' },
+          });
+          await this.confirmPaymentFromCallback(transaction.order);
+          this.logger.log(`Paiement confirmé pour commande ${orderId} via redirect callback`);
+          return;
+        }
+
+        if (verifyResult.pending) {
+          // Le paiement est encore en cours — le webhook finira le traitement
+          this.logger.log(`Paiement encore en cours pour commande ${orderId}, attente webhook`);
+          return;
+        }
+
+        // Échec confirmé par l'API
+        await this.prisma.transaction.update({
+          where: { id: transaction.id },
+          data: { status: TransactionStatus.FAILED, note: `Échec vérifié: ${verifyResult.message}` },
+        });
+        await this.prisma.order.update({
+          where: { id: orderId },
+          data: { status: OrderStatus.PENDING },
+        });
+      } catch (error) {
+        this.logger.error(`Erreur vérification OM pour commande ${orderId}`, error);
+        // En cas d'erreur de vérification, on laisse le webhook gérer
+      }
+    }
+  }
+
+  async handleOrangeMoneyCallback(payload: any) {
+    this.logger.log(`Orange Money webhook reçu: ${JSON.stringify(payload)}`);
+
+    // Extraire la référence — Orange Money peut envoyer sous différents noms
+    const reference = payload.qrId || payload.transactionId || payload.requestId
+      || payload.notif?.qrId || payload.notif?.transactionId;
     if (!reference) {
-      this.logger.warn('Callback Orange Money sans référence de transaction');
+      this.logger.warn('Webhook Orange Money sans référence de transaction');
       return { received: true };
     }
 
@@ -242,23 +324,30 @@ export class PaymentsService implements OnModuleInit {
       return { received: true };
     }
 
-    const status = (payload.status || '').toUpperCase();
+    // Idempotency: commande déjà payée
+    if (existingTx.order.status === OrderStatus.PAID) {
+      this.logger.log(`Commande ${existingTx.orderId} déjà PAID, webhook ignoré`);
+      return { received: true };
+    }
 
-    if (status === 'SUCCESS' || status === 'ACCEPTED') {
+    // Extraire le statut — peut être à différents niveaux du payload
+    const rawStatus = payload.status || payload.notif?.status || payload.paymentStatus || '';
+    const status = rawStatus.toUpperCase();
+
+    if (status === 'SUCCESS' || status === 'ACCEPTED' || status === 'SUCCESSFULL') {
       await this.prisma.transaction.update({
         where: { id: existingTx.id },
-        data: { status: TransactionStatus.SUCCESS, note: 'Paiement Orange Money confirmé' },
+        data: { status: TransactionStatus.SUCCESS, note: 'Paiement Orange Money confirmé via webhook' },
       });
 
       await this.confirmPaymentFromCallback(existingTx.order);
       this.logger.log(`Paiement Orange Money confirmé pour commande ${existingTx.orderId}`);
-    } else if (status === 'FAILED' || status === 'CANCELLED' || status === 'REJECTED') {
+    } else if (status === 'FAILED' || status === 'CANCELLED' || status === 'REJECTED' || status === 'EXPIRED') {
       await this.prisma.transaction.update({
         where: { id: existingTx.id },
         data: { status: TransactionStatus.FAILED, note: `Paiement échoué: ${status}` },
       });
 
-      // Remettre la commande en PENDING pour permettre un retry
       if (existingTx.orderId) {
         await this.prisma.order.update({
           where: { id: existingTx.orderId },
@@ -267,6 +356,33 @@ export class PaymentsService implements OnModuleInit {
       }
 
       this.logger.warn(`Paiement Orange Money échoué (${status}) pour commande ${existingTx.orderId}`);
+    } else {
+      // Statut inconnu ou absent — vérifier activement via l'API
+      this.logger.warn(`Webhook avec statut inconnu "${rawStatus}" pour ref ${reference}, vérification active`);
+      try {
+        const verifyResult = await this.orangeMoneyStrategy.verifyPayment(reference);
+        if (verifyResult.success) {
+          await this.prisma.transaction.update({
+            where: { id: existingTx.id },
+            data: { status: TransactionStatus.SUCCESS, note: 'Confirmé via webhook + vérification API' },
+          });
+          await this.confirmPaymentFromCallback(existingTx.order);
+          this.logger.log(`Paiement confirmé par vérification API pour commande ${existingTx.orderId}`);
+        } else if (!verifyResult.pending) {
+          await this.prisma.transaction.update({
+            where: { id: existingTx.id },
+            data: { status: TransactionStatus.FAILED, note: `Échec vérifié: ${verifyResult.message}` },
+          });
+          if (existingTx.orderId) {
+            await this.prisma.order.update({
+              where: { id: existingTx.orderId },
+              data: { status: OrderStatus.PENDING },
+            });
+          }
+        }
+      } catch (error) {
+        this.logger.error(`Erreur vérification active pour ref ${reference}`, error);
+      }
     }
 
     return { received: true };
