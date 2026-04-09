@@ -135,6 +135,8 @@ export class OrangeMoneyStrategy implements IPaymentStrategy {
 
   async registerCallback(): Promise<any> {
     const token = await this.getAccessToken();
+    const callbackUrl = `${this.appBaseUrl}/payments/orange-money/callback`;
+
     const response = await fetch(`${this.baseUrl}/api/notification/v1/merchantcallback`, {
       method: 'POST',
       headers: {
@@ -145,10 +147,28 @@ export class OrangeMoneyStrategy implements IPaymentStrategy {
         apiKey: this.clientId,
         code: this.merchantCode,
         name: this.merchantName,
-        callbackUrl: `${this.appBaseUrl}/payments/orange-money/callback`,
+        callbackUrl,
       }),
     });
-    return response.json();
+
+    // Read body once — OM may return empty body (200/204 = success)
+    const text = await response.text();
+    let data: any = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = { raw: text };
+    }
+
+    this.logger.log(
+      `registerCallback → status: ${response.status}, url: ${callbackUrl}, body: ${JSON.stringify(data)}`,
+    );
+
+    if (!response.ok) {
+      throw new Error(`registerCallback failed: ${response.status} — ${text}`);
+    }
+
+    return data;
   }
 
   async verifyPayment(reference: string): Promise<PaymentResult> {

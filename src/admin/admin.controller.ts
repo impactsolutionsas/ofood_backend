@@ -1,6 +1,6 @@
-import { Controller, Get, Patch, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Param, Body, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { Role } from '@prisma/client';
+import { Role, TransactionStatus } from '@prisma/client';
 import { AdminService } from './admin.service';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -70,9 +70,21 @@ export class AdminController {
   }
 
   @Get('transactions')
-  @ApiOperation({ summary: 'Toutes les transactions (ADMIN)' })
+  @ApiOperation({ summary: 'Toutes les transactions (ADMIN) — filtre optionnel par ?status=PENDING|SUCCESS|FAILED' })
   @ApiResponse({ status: 200, description: 'Transactions retournées' })
-  async getTransactions() {
-    return this.adminService.getTransactions();
+  async getTransactions(@Query('status') status?: TransactionStatus) {
+    return this.adminService.getTransactions(status);
+  }
+
+  @Post('transactions/:id/validate')
+  @ApiOperation({ summary: 'Valider manuellement un paiement en attente (ADMIN)' })
+  @ApiResponse({ status: 201, description: 'Paiement validé, client et restaurant notifiés' })
+  @ApiResponse({ status: 400, description: 'Transaction déjà validée ou sans commande' })
+  @ApiResponse({ status: 404, description: 'Transaction non trouvée' })
+  async manuallyValidateTransaction(
+    @Param('id', ParseUuidPipe) id: string,
+    @Body() body: { note?: string },
+  ) {
+    return this.adminService.manuallyValidateTransaction(id, body?.note);
   }
 }
