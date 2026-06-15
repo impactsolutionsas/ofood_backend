@@ -296,16 +296,16 @@ export class PaymentsService implements OnModuleInit {
   async handleOrangeMoneyCallback(payload: any) {
     this.logger.log(`Orange Money webhook reçu: ${JSON.stringify(payload)}`);
 
-    // Extraire la référence — Orange Money peut envoyer sous différents noms
-    const reference = payload.qrId || payload.transactionId || payload.requestId
-      || payload.notif?.qrId || payload.notif?.transactionId;
-    if (!reference) {
-      this.logger.warn('Webhook Orange Money sans référence de transaction');
+    // Orange Money envoie l'orderId dans payload.reference et payload.metadata.orderId
+    const orderId = payload.reference || payload.metadata?.orderId;
+    this.logger.log(`[OM Webhook] payload complet: ${JSON.stringify(payload)} | orderId extrait: ${orderId ?? 'AUCUN'}`);
+    if (!orderId) {
+      this.logger.warn('Webhook Orange Money sans orderId identifiable');
       return { received: true };
     }
 
     const existingTx = await this.prisma.transaction.findFirst({
-      where: { reference, status: TransactionStatus.PENDING },
+      where: { orderId, status: TransactionStatus.PENDING },
       include: {
         order: {
           include: {
@@ -320,7 +320,7 @@ export class PaymentsService implements OnModuleInit {
     });
 
     if (!existingTx || !existingTx.order) {
-      this.logger.warn(`Transaction PENDING introuvable pour ref: ${reference}`);
+      this.logger.warn(`Transaction PENDING introuvable pour orderId: ${orderId}`);
       return { received: true };
     }
 
@@ -358,9 +358,13 @@ export class PaymentsService implements OnModuleInit {
       this.logger.warn(`Paiement Orange Money échoué (${status}) pour commande ${existingTx.orderId}`);
     } else {
       // Statut inconnu ou absent — vérifier activement via l'API
-      this.logger.warn(`Webhook avec statut inconnu "${rawStatus}" pour ref ${reference}, vérification active`);
+      this.logger.warn(`Webhook avec statut inconnu "${rawStatus}" pour orderId ${orderId}, vérification active`);
       try {
-        const verifyResult = await this.orangeMoneyStrategy.verifyPayment(reference);
+        if (!existingTx.reference) {
+          this.logger.warn(`Pas de référence OM (qrId) en DB pour orderId ${orderId}, vérification impossible`);
+          return { received: true };
+        }
+        const verifyResult = await this.orangeMoneyStrategy.verifyPayment(existingTx.reference);
         if (verifyResult.success) {
           await this.prisma.transaction.update({
             where: { id: existingTx.id },
@@ -381,7 +385,7 @@ export class PaymentsService implements OnModuleInit {
           }
         }
       } catch (error) {
-        this.logger.error(`Erreur vérification active pour ref ${reference}`, error);
+        this.logger.error(`Erreur vérification active pour orderId ${orderId}`, error);
       }
     }
 
@@ -395,47 +399,72 @@ export class PaymentsService implements OnModuleInit {
       return;
     }
 
-    await this.prisma.$transaction(async (tx) => {
-      const current = await tx.order.findUnique({
-        where: { id: order.id },
-        select: { status: true },
-      });
-      if (current?.status === OrderStatus.PAID) return;
+    const MAX_RETRIES = 3;
+    const delays = [1000, 2000, 3000];
+    let lastError: unknown;
 
-      await tx.order.update({
-        where: { id: order.id },
-        data: {
-          status: OrderStatus.PAID,
-          paymentStatus: 'PAID',
-        },
-      });
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        await this.prisma.$transaction(async (tx) => {
+          const current = await tx.order.findUnique({
+            where: { id: order.id },
+            select: { status: true },
+          });
+          if (current?.status === OrderStatus.PAID) return;
 
-      const restaurantAmounts = new Map<string, number>();
-      for (const item of order.items) {
-        const current = restaurantAmounts.get(item.restaurantId) || 0;
-        restaurantAmounts.set(item.restaurantId, current + item.subtotal);
+          await tx.order.update({
+            where: { id: order.id },
+            data: {
+              status: OrderStatus.PAID,
+              paymentStatus: 'PAID',
+            },
+          });
+
+          const restaurantAmounts = new Map<string, number>();
+          for (const item of order.items) {
+            const current = restaurantAmounts.get(item.restaurantId) || 0;
+            restaurantAmounts.set(item.restaurantId, current + item.subtotal);
+          }
+
+          await Promise.all(
+            [...restaurantAmounts.entries()].map(async ([restaurantId, amount]) => {
+              await tx.restaurant.update({
+                where: { id: restaurantId },
+                data: { walletBalance: { increment: amount } },
+              });
+
+              await tx.transaction.create({
+                data: {
+                  restaurantId,
+                  orderId: order.id,
+                  type: TransactionType.CREDIT,
+                  amount,
+                  status: TransactionStatus.SUCCESS,
+                  note: `Paiement commande #${order.id.slice(0, 8)}`,
+                },
+              });
+            }),
+          );
+        }, { timeout: 30000, maxWait: 5000 });
+
+        this.sendPaymentNotifications(order);
+        return;
+      } catch (error) {
+        lastError = error;
+        this.logger.warn(
+          `confirmPaymentFromCallback: tentative ${attempt}/${MAX_RETRIES} échouée pour commande ${order.id} — ${(error as Error)?.message ?? error}`,
+        );
+        if (attempt < MAX_RETRIES) {
+          await new Promise((resolve) => setTimeout(resolve, delays[attempt - 1]));
+        }
       }
+    }
 
-      for (const [restaurantId, amount] of restaurantAmounts) {
-        await tx.restaurant.update({
-          where: { id: restaurantId },
-          data: { walletBalance: { increment: amount } },
-        });
-
-        await tx.transaction.create({
-          data: {
-            restaurantId,
-            orderId: order.id,
-            type: TransactionType.CREDIT,
-            amount,
-            status: TransactionStatus.SUCCESS,
-            note: `Paiement commande #${order.id.slice(0, 8)}`,
-          },
-        });
-      }
-    });
-
-    this.sendPaymentNotifications(order);
+    this.logger.error(
+      `confirmPaymentFromCallback: toutes les tentatives épuisées pour commande ${order.id}`,
+      lastError,
+    );
+    throw lastError;
   }
 
   private sendPaymentNotifications(order: any) {
